@@ -1,0 +1,30 @@
+【整体准确率 accuracy】
+  正确样本数 / 总样本数。阳性很少时，即使全预测为阴性，准确率也会很高，因此「单看准确率」容易误判模型好坏。
+
+【平衡准确率 balanced_accuracy】
+  (阳性召回率 + 阴性召回率) / 2，对两类更公平，适合不平衡数据。
+
+【可信准确率 trusted_accuracy】
+  accuracy 与 balanced_accuracy 的调和平均：2×acc×bacc/(acc+bacc)。
+  两类指标差距大时更偏向较低者，用于「单数字」汇报时比单独看 accuracy 更不易被多数类比例误导。
+
+【ROC-AUC / PR-AUC】
+  ROC-AUC 看排序能力；PR-AUC 在不平衡时往往比准确率更有参考价值。
+
+【combined_mlp_perm（MLP权重+Permutation 合成排序）】
+  将 MLP 权重绝对值重要度（mlp_weight_abs_importance）与排列重要性（perm_drop_balanced_accuracy）归一化后按 0.5:0.5 加权。
+  用于把“模型内部权重强度”和“打乱后的性能下降幅度”同时考虑进特征排序。
+
+【perm_drop_balanced_accuracy（排列重要性）】
+  在评估集上对该特征列做随机打乱，其它特征保持不变。
+  重算模型预测并计算 balanced_accuracy；drop 越大表示该特征越关键。
+
+【mlp_weight_abs_importance（MLP权重重要度）】
+  基于 3 层 MLP 的权重绝对值估计“从输入到输出”的路径贡献强度，并对每个输入特征求和。
+  该指标用于排序与特征筛选参考；不是因果结论。
+
+【rf_importance（对照）】
+  XGBoost gain 重要度（列名沿用 rf_importance），可与 MLP 权重重要度对照，不宜单独作为因果结论。
+
+【中文列】
+  默认使用问卷变量内置英文名->中文映射；若存在 origin/diabetes_questionnaire_列说明.csv 则合并覆盖。

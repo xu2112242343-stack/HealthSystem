@@ -1,0 +1,103 @@
+{
+  "model_name": "vit_b_16",
+  "checkpoint_path": "F:\\00_Test\\liver_test\\outputs\\models\\image\\vit_b_16.pt",
+  "external_metrics": {
+    "auc": 0.6137770897832817,
+    "ap": 0.8801986985680804,
+    "accuracy": 0.6666666666666666,
+    "sensitivity": 0.7105263157894737,
+    "specificity": 0.47058823529411764,
+    "f1": 0.7769784172661871,
+    "brier": 0.22126182149861617,
+    "auc_ci_low": NaN,
+    "auc_ci_high": NaN,
+    "f1_macro": 0.5587019745905404,
+    "f1_weighted": 0.6971784274707894,
+    "threshold": 0.5,
+    "n_total_patients": 94,
+    "n_used_patients": 93,
+    "n_patients_missing_images": 1,
+    "image_preprocess": "fan_geom",
+    "fan_top_strip": 0.12
+  },
+  "internal_test_metrics": {
+    "test_patient_auc": 0.8333333333333334,
+    "test_patient_accuracy": 0.8888888888888888,
+    "test_patient_sensitivity": 1.0,
+    "test_patient_specificity": 0.6666666666666666,
+    "test_patient_f1": 0.9230769230769232,
+    "test_patient_f1_weighted": 0.882051282051282,
+    "test_patient_brier": 0.1211991295211704
+  },
+  "metric_deltas_external_minus_internal": {
+    "test_patient_auc": -0.21955624355005166,
+    "test_patient_accuracy": -0.2222222222222222,
+    "test_patient_sensitivity": -0.2894736842105263,
+    "test_patient_specificity": -0.196078431372549,
+    "test_patient_f1": -0.14609850581073613,
+    "test_patient_f1_weighted": -0.18487285458049263,
+    "test_patient_brier": 0.10006269197744577
+  },
+  "patient_scores_head": [
+    {
+      "patient_id": "TAL02130",
+      "label": 1,
+      "prob": 0.6932121652823228,
+      "n_images": 13
+    },
+    {
+      "patient_id": "TAL03101",
+      "label": 0,
+      "prob": 0.6783324502981626,
+      "n_images": 13
+    },
+    {
+      "patient_id": "TAL04102",
+      "label": 0,
+      "prob": 0.5954058605891007,
+      "n_images": 13
+    },
+    {
+      "patient_id": "TAL05211",
+      "label": 1,
+      "prob": 0.6407719827615298,
+      "n_images": 13
+    },
+    {
+      "patient_id": "TAL07001",
+      "label": 0,
+      "prob": 0.43791426718235016,
+      "n_images": 9
+    },
+    {
+      "patient_id": "TAL09011",
+      "label": 1,
+      "prob": 0.4181913068661323,
+      "n_images": 13
+    },
+    {
+      "patient_id": "TAL10031",
+      "label": 1,
+      "prob": 0.47615771568738496,
+      "n_images": 13
+    },
+    {
+      "patient_id": "TAL11031",
+      "label": 1,
+      "prob": 0.602170467376709,
+      "n_images": 2
+    },
+    {
+      "patient_id": "TAL12000",
+      "label": 0,
+      "prob": 0.6040118267902961,
+      "n_images": 13
+    },
+    {
+      "patient_id": "TAL13010",
+      "label": 1,
+      "prob": 0.6791031727424035,
+      "n_images": 13
+    }
+  ]
+}

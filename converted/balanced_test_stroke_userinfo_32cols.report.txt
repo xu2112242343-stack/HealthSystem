@@ -1,0 +1,2 @@
+[未映射] 以下列名未在映射表中，已保持原样：SEQN, risk_group, LBXSIR
+[提示] 检测到 LBXSIR 列未映射（避免与 serum_iron 冲突）。如你确认它也应写入 user_info.serum_iron，请删除/转换另一列后再映射。

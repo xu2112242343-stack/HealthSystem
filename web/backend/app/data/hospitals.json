@@ -1,0 +1,122 @@
+[
+  {
+    "id": 1,
+    "name": "广东医科大学附属医院",
+    "department": "三甲综合",
+    "address": "广东省湛江市霞山区人民大道南57号",
+    "phone": "0759-2369336",
+    "rating": 4.8,
+    "specialties": ["内分泌", "代谢病", "心血管"],
+    "experts": 16,
+    "latitude": 21.1993,
+    "longitude": 110.4086
+  },
+  {
+    "id": 2,
+    "name": "吴川市人民医院",
+    "department": "三级综合",
+    "address": "广东省吴川市海滨街道滨江南路",
+    "phone": "0759-5589066",
+    "rating": 4.5,
+    "specialties": ["综合诊疗", "急诊"],
+    "experts": 12,
+    "latitude": 21.4381,
+    "longitude": 110.7758
+  },
+  {
+    "id": 3,
+    "name": "湛江市第二中医医院",
+    "department": "三甲中医",
+    "address": "广东省湛江市霞山区解放西路14号",
+    "phone": "0759-2283540",
+    "rating": 4.6,
+    "specialties": ["中医内科", "针灸康复"],
+    "experts": 11,
+    "latitude": 21.1951,
+    "longitude": 110.3978
+  },
+  {
+    "id": 4,
+    "name": "中国人民解放军第一九六医院",
+    "department": "三甲综合",
+    "address": "广东省湛江市赤坎区北桥路14号",
+    "phone": "0759-3109196",
+    "rating": 4.7,
+    "specialties": ["综合医疗", "创伤"],
+    "experts": 14,
+    "latitude": 21.2736,
+    "longitude": 110.3614
+  },
+  {
+    "id": 5,
+    "name": "廉江市人民医院",
+    "department": "三级综合",
+    "address": "广东省廉江市人民大道160号",
+    "phone": "0759-6618700",
+    "rating": 4.5,
+    "specialties": ["综合诊疗", "内科"],
+    "experts": 10,
+    "latitude": 21.6114,
+    "longitude": 110.2846
+  },
+  {
+    "id": 6,
+    "name": "广东省农垦中心医院",
+    "department": "三甲综合",
+    "address": "广东省湛江市霞山区人民大道中2号",
+    "phone": "0759-2633188",
+    "rating": 4.7,
+    "specialties": ["肿瘤", "心血管", "内分泌"],
+    "experts": 15,
+    "latitude": 21.2008,
+    "longitude": 110.4069
+  },
+  {
+    "id": 7,
+    "name": "中国人民解放军南部战区海军第一医院",
+    "department": "三甲综合",
+    "address": "广东省湛江市霞山区海滨三路40号",
+    "phone": "0759-3565422",
+    "rating": 4.7,
+    "specialties": ["综合医疗", "外科"],
+    "experts": 13,
+    "latitude": 21.1829,
+    "longitude": 110.4198
+  },
+  {
+    "id": 8,
+    "name": "湛江中心人民医院",
+    "department": "三甲综合",
+    "address": "广东省湛江市赤坎区源珠路236号",
+    "phone": "0759-3157999",
+    "rating": 4.8,
+    "specialties": ["卒中", "内分泌", "重症"],
+    "experts": 18,
+    "latitude": 21.2654,
+    "longitude": 110.3786
+  },
+  {
+    "id": 9,
+    "name": "广东医科大学附属第二医院",
+    "department": "三甲综合",
+    "address": "广东省湛江市霞山区民有路12号",
+    "phone": "0759-2372200",
+    "rating": 4.7,
+    "specialties": ["内分泌", "代谢病", "全科"],
+    "experts": 14,
+    "latitude": 21.1964,
+    "longitude": 110.4059
+  },
+  {
+    "id": 10,
+    "name": "湛江市第一中医医院",
+    "department": "三甲中医",
+    "address": "广东省湛江市赤坎区寸金路2号",
+    "phone": "0759-3211333",
+    "rating": 4.6,
+    "specialties": ["中医内科", "治未病"],
+    "experts": 12,
+    "latitude": 21.2779,
+    "longitude": 110.3569
+  }
+]

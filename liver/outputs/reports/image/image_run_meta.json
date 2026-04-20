@@ -1,0 +1,38 @@
+{
+  "config": {
+    "data_dir": "F:\\00_Test\\liver_test\\data\\image\\B-MODE",
+    "output_root": "F:\\00_Test\\liver_test\\outputs",
+    "image_size": 224,
+    "batch_size": 16,
+    "epochs": 12,
+    "lr": 0.0001,
+    "weight_decay": 0.0001,
+    "num_workers": 0,
+    "train_ratio": 0.7,
+    "val_ratio": 0.15,
+    "test_ratio": 0.15,
+    "min_epoch_samples": 1024,
+    "early_stopping_patience": 4,
+    "threshold": 0.5,
+    "random_state": 42,
+    "device": "cpu",
+    "models": [
+      "simple_cnn",
+      "resnet50",
+      "efficientnet_b0",
+      "densenet121",
+      "vit_b_16"
+    ]
+  },
+  "dataset": {
+    "n_images": 550,
+    "n_patients": 55,
+    "class_counts": {
+      "NAFLD": 380,
+      "Non-NAFLD": 170
+    },
+    "train_patients": 37,
+    "val_patients": 9,
+    "test_patients": 9
+  }
+}

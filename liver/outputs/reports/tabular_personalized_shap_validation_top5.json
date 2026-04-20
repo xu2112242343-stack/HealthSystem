@@ -1,0 +1,13 @@
+{
+  "n_selected": 80,
+  "top_k": 5,
+  "health_score_formula": "health=(1-p_nafld)*100",
+  "health_auc_predict_non_nafld": 0.8574545454545455,
+  "mean_health_non_nafld": 74.10820979624987,
+  "mean_health_nafld": 25.917373136193916,
+  "shap_direction_check_top_features_positive_share": {
+    "pos_rate_top_shap_gt_0_among_topk_non_nafld": 0.17600000000000002,
+    "pos_rate_top_shap_gt_0_among_topk_nafld": 0.6
+  },
+  "note": "仅用于抽样探索：本地 SHAP 方向性与标签之间应出现趋势（非严格因果）。"
+}

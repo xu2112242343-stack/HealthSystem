@@ -1,0 +1,19 @@
+{
+  "name": "health-web-workspace",
+  "private": true,
+  "description": "统一门户 + 用户/医生/管理子应用，本地一键并行启动",
+  "scripts": {
+    "install:all": "npm install --prefix portal && npm install --prefix sanyuan-user && npm install --prefix doctor && npm install --prefix administrator",
+    "dev": "concurrently -k -n portal,user,doctor,admin -c cyan,green,yellow,magenta \"npm run dev --prefix portal\" \"npm run dev --prefix sanyuan-user\" \"npm run dev --prefix doctor\" \"npm run dev --prefix administrator\"",
+    "dev:portal": "npm run dev --prefix portal",
+    "dev:user": "npm run dev --prefix sanyuan-user",
+    "dev:doctor": "npm run dev --prefix doctor",
+    "dev:admin": "npm run dev --prefix administrator",
+    "build:all": "npm run build --prefix portal && npm run build --prefix sanyuan-user && npm run build --prefix doctor && npm run build --prefix administrator",
+    "backend": "cd backend && python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8001",
+    "backend:install": "pip install -r backend/requirements.txt"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

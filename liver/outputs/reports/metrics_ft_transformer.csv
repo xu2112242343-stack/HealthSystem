@@ -1,0 +1,2 @@
+model,pipeline,val_auc,val_ap,val_accuracy,val_sensitivity,val_specificity,val_f1,val_brier,val_auc_ci_low,val_auc_ci_high,test_auc,test_ap,test_accuracy,test_sensitivity,test_specificity,test_f1,test_brier,test_auc_ci_low,test_auc_ci_high
+FTTransformer,torch,0.8453045050590544,0.8820748453113064,0.7423312883435583,0.9358288770053476,0.48201438848920863,0.8064516129032258,0.17003357385916273,,,0.8267995229484861,0.8624162963670621,0.7361963190184049,0.8502673796791443,0.5827338129496403,0.7871287128712872,0.1699213363237818,,

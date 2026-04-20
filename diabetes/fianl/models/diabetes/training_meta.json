@@ -1,0 +1,211 @@
+{
+  "metrics": {
+    "roc_auc": 0.9666076696165192,
+    "pr_auc": 0.9448846315764713,
+    "accuracy": 0.9148936170212766,
+    "balanced_accuracy": 0.9202359882005899,
+    "trusted_accuracy": 0.9175570263400539,
+    "threshold_selected": 0.039999999999999994,
+    "threshold_ba_val": 0.039999999999999994,
+    "ba_val_at_threshold": 0.9269026548672565,
+    "threshold_f1_val": 0.039999999999999994,
+    "f1_val_at_threshold": 0.9056603773584906,
+    "threshold_compare_on_eval": {
+      "f1_threshold": {
+        "threshold": 0.039999999999999994,
+        "accuracy": 0.9148936170212766,
+        "balanced_accuracy": 0.9202359882005899,
+        "trusted_accuracy": 0.9175570263400539,
+        "f1": 0.8987341772151899,
+        "confusion_matrix": [
+          [
+            101,
+            12
+          ],
+          [
+            4,
+            71
+          ]
+        ],
+        "classification_report": {
+          "0": {
+            "precision": 0.9619047619047619,
+            "recall": 0.8938053097345132,
+            "f1-score": 0.926605504587156,
+            "support": 113.0
+          },
+          "1": {
+            "precision": 0.8554216867469879,
+            "recall": 0.9466666666666667,
+            "f1-score": 0.8987341772151899,
+            "support": 75.0
+          },
+          "accuracy": 0.9148936170212766,
+          "macro avg": {
+            "precision": 0.908663224325875,
+            "recall": 0.9202359882005899,
+            "f1-score": 0.9126698409011729,
+            "support": 188.0
+          },
+          "weighted avg": {
+            "precision": 0.9194248117088415,
+            "recall": 0.9148936170212766,
+            "f1-score": 0.9154866239866376,
+            "support": 188.0
+          }
+        }
+      },
+      "ba_threshold": {
+        "threshold": 0.039999999999999994,
+        "accuracy": 0.9148936170212766,
+        "balanced_accuracy": 0.9202359882005899,
+        "trusted_accuracy": 0.9175570263400539,
+        "f1": 0.8987341772151899,
+        "confusion_matrix": [
+          [
+            101,
+            12
+          ],
+          [
+            4,
+            71
+          ]
+        ],
+        "classification_report": {
+          "0": {
+            "precision": 0.9619047619047619,
+            "recall": 0.8938053097345132,
+            "f1-score": 0.926605504587156,
+            "support": 113.0
+          },
+          "1": {
+            "precision": 0.8554216867469879,
+            "recall": 0.9466666666666667,
+            "f1-score": 0.8987341772151899,
+            "support": 75.0
+          },
+          "accuracy": 0.9148936170212766,
+          "macro avg": {
+            "precision": 0.908663224325875,
+            "recall": 0.9202359882005899,
+            "f1-score": 0.9126698409011729,
+            "support": 188.0
+          },
+          "weighted avg": {
+            "precision": 0.9194248117088415,
+            "recall": 0.9148936170212766,
+            "f1-score": 0.9154866239866376,
+            "support": 188.0
+          }
+        }
+      }
+    },
+    "calibration_method": "auto->isotonic_prefit_on_unresampled_threshold_set",
+    "calibration_mode": "auto",
+    "calibration_brier_candidates": {
+      "none": 0.06261858239271538,
+      "sigmoid": 0.0627690063335653,
+      "isotonic": 0.0540492311030998
+    },
+    "n_train_after_smote": 1503,
+    "n_fit": 1202,
+    "n_val_model_fit": 301,
+    "n_val_threshold": 188,
+    "n_test": 188,
+    "n_features": 33,
+    "positive_rate_train": 0.40053226879574183,
+    "positive_rate_test": 0.39893617021276595,
+    "classification_report": {
+      "0": {
+        "precision": 0.9619047619047619,
+        "recall": 0.8938053097345132,
+        "f1-score": 0.926605504587156,
+        "support": 113.0
+      },
+      "1": {
+        "precision": 0.8554216867469879,
+        "recall": 0.9466666666666667,
+        "f1-score": 0.8987341772151899,
+        "support": 75.0
+      },
+      "accuracy": 0.9148936170212766,
+      "macro avg": {
+        "precision": 0.908663224325875,
+        "recall": 0.9202359882005899,
+        "f1-score": 0.9126698409011729,
+        "support": 188.0
+      },
+      "weighted avg": {
+        "precision": 0.9194248117088415,
+        "recall": 0.9148936170212766,
+        "f1-score": 0.9154866239866376,
+        "support": 188.0
+      }
+    },
+    "confusion_matrix": [
+      [
+        101,
+        12
+      ],
+      [
+        4,
+        71
+      ]
+    ],
+    "risk_tier_scheme": "fixed_thresholds",
+    "risk_fixed_thresholds": [
+      0.2,
+      0.5
+    ],
+    "risk_quantiles_train": [
+      0.2,
+      0.5
+    ],
+    "model_risk_tier_distribution_test": {
+      "1": 106,
+      "2": 6,
+      "3": 76
+    },
+    "combined_mlp_importance_plot_bar": "E:\\cursor_program\\models\\diabetes\\feature_importance_bar_combined.png"
+  },
+  "risk_quantiles_train": [
+    0.2,
+    0.5
+  ],
+  "feature_columns": [
+    "Age",
+    "Gender",
+    "BMI",
+    "Smoking",
+    "AlcoholConsumption",
+    "PhysicalActivity",
+    "DietQuality",
+    "SleepQuality",
+    "FamilyHistoryDiabetes",
+    "GestationalDiabetes",
+    "PolycysticOvarySyndrome",
+    "PreviousPreDiabetes",
+    "Hypertension",
+    "SystolicBP",
+    "DiastolicBP",
+    "FastingBloodSugar",
+    "HbA1c",
+    "SerumCreatinine",
+    "BUNLevels",
+    "CholesterolTotal",
+    "CholesterolLDL",
+    "CholesterolHDL",
+    "CholesterolTriglycerides",
+    "AntihypertensiveMedications",
+    "AntidiabeticMedications",
+    "FrequentUrination",
+    "ExcessiveThirst",
+    "UnexplainedWeightLoss",
+    "FatigueLevels",
+    "BlurredVision",
+    "SlowHealingSores",
+    "QualityOfLifeScore",
+    "HealthLiteracy"
+  ],
+  "uncertain_prior": 0.39893617021276595
+}

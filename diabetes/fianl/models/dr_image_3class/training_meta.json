@@ -1,0 +1,31 @@
+{
+  "task_mode": "binary",
+  "label_mapping": {
+    "original_level_to_tier": "0->0(未患病); 1,2,3,4->1(患病)",
+    "class_index_0_1_2": [
+      "non_disease",
+      "disease"
+    ]
+  },
+  "n_matched_images": 2124,
+  "n_skipped_missing_file": 33002,
+  "val_ratio": 0.15,
+  "best_val_acc": 0.7774294670846394,
+  "confusion_matrix_val": [
+    [
+      210,
+      28
+    ],
+    [
+      43,
+      38
+    ]
+  ],
+  "classification_report_val": "              precision    recall  f1-score   support\n\n         未患病     0.8300    0.8824    0.8554       238\n          患病     0.5758    0.4691    0.5170        81\n\n    accuracy                         0.7774       319\n   macro avg     0.7029    0.6757    0.6862       319\nweighted avg     0.7655    0.7774    0.7695       319\n",
+  "image_dir": "E:\\cursor_program\\糖尿病图片",
+  "calibration_method": "temperature_scaling",
+  "calibration_temperature": 2.781022548675537,
+  "calibration_val_nll_before": 0.7234641313552856,
+  "calibration_val_nll_after": 0.5189648270606995,
+  "val_roc_auc": 0.7210810250025936
+}

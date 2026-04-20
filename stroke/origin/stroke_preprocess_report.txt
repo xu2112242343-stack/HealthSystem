@@ -1,0 +1,28 @@
+
+脑卒中预处理+不平衡处理报告
+============================
+原始行数: 3447
+删除列数: 57（设计权重/糖尿病问卷/重复单位/注释码/泄漏列/文本列）
+MCQ160F 删除 7/9 行数: 0
+有效标签样本: 3447（阳性=529, 阴性=2918）
+标签缺失行数: 0（监督学习时请 subset target_stroke.notna()）
+基础预处理输出: E:\xinkaifa\智慧医疗\cursor\origin\stroke_preprocessed.csv
+填补参数: E:\xinkaifa\智慧医疗\cursor\origin\stroke_preprocess_medians.json
+
+=== 不平衡数据处理报告 ===
+有效标签样本总数: 3447
+脑卒中阳性样本: 529, 阴性样本: 2918
+原始不平衡比例（阴:阳）: 5.5:1
+训练集原始分布: 阳性=370, 阴性=2042
+平衡后训练集分布: Counter({0.0: 2042, 1.0: 2042})
+测试集原始分布: 阳性=159, 阴性=876
+平衡后训练集输出: E:\xinkaifa\智慧医疗\cursor\origin\balanced_train_stroke.csv
+测试集输出: E:\xinkaifa\智慧医疗\cursor\origin\balanced_test_stroke.csv
+
+采样对比图: E:\xinkaifa\智慧医疗\cursor\origin\stroke_balance_comparison.png
+平衡训练集输出: E:\xinkaifa\智慧医疗\cursor\origin\balanced_train_stroke.csv
+平衡测试集输出: E:\xinkaifa\智慧医疗\cursor\origin\balanced_test_stroke.csv
+最终特征训练集: E:\xinkaifa\智慧医疗\cursor\origin\selected25_train_stroke.csv
+最终特征测试集: E:\xinkaifa\智慧医疗\cursor\origin\selected25_test_stroke.csv
+最终特征数（去重去CHOL）: 30
+最终特征列表: ['RIDAGEYR', 'BPQ020', 'MCQ160E', 'MCQ160C', 'LBDSCRSI', 'ALQ121', 'LBXGH', 'LBXSCLSI', 'MCQ160D', 'LBXRDW', 'LBXRBCSI', 'LBXSLDSI', 'LBDSTRSI', 'LBXSASSI', 'RIAGENDR', 'LBXLYPCT', 'PAD680', 'PAQ650', 'SMQ040', 'LBDSIRSI', 'LBDSBUSI', 'LBXSIR', 'LBXHCT', 'LBXHGB', 'LBDHDDSI', 'LBDLDLSI', 'BMXBMI', 'LBDGLUSI', 'LBDSCHSI', 'MAP']
