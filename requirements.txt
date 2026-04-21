@@ -1,4 +1,9 @@
 # HealthSystem monorepo dependencies (backend + liver modules)
+#
+# CentOS 7 / 系统 gcc 4.8：若某包被解析成 .tar.gz 源码安装，常会临时拉取 numpy>=2 来构建，触发
+# “NumPy requires GCC >= 9.3”。优先保证下面科学计算栈用 manylinux wheel（版本已做上限约束）。
+# 仍失败时可尝试（慎用，部分包无 wheel 会失败）：
+#   PIP_ONLY_BINARY=numpy,pandas,scipy,scikit-learn,matplotlib,contourpy,shap,xgboost,lightgbm,catboost,greenlet,pyarrow pip install -r requirements.txt
 
 # Backend API
 python-dotenv>=1.0.0
@@ -12,30 +17,44 @@ PyJWT>=2.8.0
 pydicom>=3.0.0
 
 # Core data/ML
-numpy>=1.26.0
-pandas>=2.0.0
-scipy>=1.10
-scikit-learn>=1.3.0
+# NumPy 2.x 在部分环境会从源码编译且要求 GCC>=9.3；CentOS7 默认 gcc 4.8 请保持 1.x
+numpy>=1.26.0,<2.0.0
+# Pandas 2.3+ 从源码构建时会要求 numpy>=2（旧 GCC 编不过）；与 numpy 1.x 用 2.2.x 及以下更稳
+pandas>=2.0.0,<2.3.0
+# SciPy 1.14+ 从源码构建会拉 numpy>=2；CentOS7 用 wheel 上限锁在 1.13.x
+scipy>=1.10.0,<1.14.0
+# 1.5+ 源码构建会拉 numpy 2；CentOS7 请用 wheel，钉在 1.4.x（与 numpy 1.26 兼容）
+scikit-learn>=1.3.0,<=1.4.2
 joblib>=1.3.0
 openpyxl>=3.1
 
 # Visualization / explainability
-matplotlib>=3.7
-seaborn>=0.13
-plotly>=5.18
-shap>=0.44
+# matplotlib 4.x 起默认面向 numpy 2；与 numpy 1.26 保持 3.x
+matplotlib>=3.7.0,<4.0.0
+# contourpy 1.3+ 源码构建需 C++17（gcc 4.8 不支持）；锁在 1.2.x 走 manylinux wheel
+contourpy>=1.0.1,<1.3.0
+seaborn>=0.13.0,<1.0.0
+plotly>=5.18.0
+# shap 可能带本地扩展；新版本易拉 numpy 2 构建链，先锁在 0.44.x
+shap>=0.44.0,<0.45.0
 
 # Tree models
-xgboost>=2.0
-lightgbm>=4.0
-catboost>=1.2
+# XGBoost 3.x 在部分环境只有 sdist，会调 cmake 编 C++；CentOS7 请锁在 2.1.x wheel（2.2+ 若仍无 wheel 再装 cmake）
+xgboost>=2.0.0,<2.2.0
+# 该环境启用 only-binary 时仅有 3.3.x 可用；锁到 3.3.5 避免源码构建
+lightgbm>=3.3.0,<=3.3.5
+catboost>=1.2.0,<2.0.0
 
 # Vision / imaging
-Pillow>=10.0
-opencv-python>=4.8
-ultralytics>=8.0
-torch>=2.0
-torchvision>=0.15
+Pillow>=10.0.0,<12.0.0
+opencv-python>=4.8.0,<5.0.0
+# ultralytics 会强依赖 torch；过新版本可能只提供较新 manylinux 标签
+ultralytics>=8.0.0,<9.0.0
+# 若 torch 装不上，请到 pytorch.org 按 CPU/CUDA 选对应 pip 命令，再装其余依赖
+torch>=2.0.0,<2.6.0
+torchvision>=0.15.0,<0.22.0
 
 # Apps / demos
-streamlit>=1.36
+# pyarrow 新版在老系统上常无匹配 wheel，容易落到源码构建并触发 numpy2/gcc 问题
+pyarrow>=12.0.0,<15.0.0
+streamlit>=1.36.0,<2.0.0
