@@ -2617,6 +2617,12 @@ def doctor_followup_metrics(
         .all()
     )
 
+    def _to_utc_aware(dt: datetime) -> datetime:
+        # 某些驱动/库会把 timezone=True 的字段读成 naive datetime，统一按 UTC 处理后比较。
+        if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
+            return dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc)
+
     now_dt = datetime.now(timezone.utc)
     grace = timedelta(days=max(0, int(graceDays)))
 
@@ -2638,16 +2644,18 @@ def doctor_followup_metrics(
             due_dt = cur.next_review_date
             if due_dt is None:
                 continue
-            window_end = due_dt + grace
+            due_dt_utc = _to_utc_aware(due_dt)
+            window_end = due_dt_utc + grace
             if now_dt <= window_end:
                 # 未进入统计窗口：不计入失访率
                 continue
 
             nxt = user_snaps[i + 1]
+            nxt_snapshot_utc = _to_utc_aware(nxt.snapshot_time)
             total_due += 1
-            if nxt.snapshot_time <= window_end:
+            if nxt_snapshot_utc <= window_end:
                 revisited += 1
-                if nxt.snapshot_time <= due_dt:
+                if nxt_snapshot_utc <= due_dt_utc:
                     on_time += 1
                 else:
                     late += 1
