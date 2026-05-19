@@ -317,12 +317,15 @@ export function HomePage() {
       value: factorWeightToRosePercent(value),
     }));
   }, [remoteRisk]);
-  const riskFactorsData = riskFactorsRaw.map((row, i) => ({
-    name: row.name,
-    displayName: row.displayName,
-    value: row.value,
-    color: row.color ?? ROSE_COLOR_FALLBACK[i % ROSE_COLOR_FALLBACK.length],
-  }));
+  const riskFactorsData = riskFactorsRaw
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 10)
+    .map((row, i) => ({
+      name: row.name,
+      displayName: row.displayName,
+      value: row.value,
+      color: row.color ?? ROSE_COLOR_FALLBACK[i % ROSE_COLOR_FALLBACK.length],
+    }));
 
   const roseN = riskFactorsData.length;
   const roseSectorDeg = roseN > 0 ? 360 / roseN : 0;

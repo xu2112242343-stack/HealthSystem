@@ -36,7 +36,7 @@ function App() {
   const pageTitles: Record<Page, string> = {
     dashboard: '风险评估工作台',
     risk: '疾病分析',
-    followup: '患者随访历史',
+    followup: '患者档案',
   };
 
   const renderPage = () => {

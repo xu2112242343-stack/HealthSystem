@@ -97,6 +97,24 @@ export type DoctorPatientRow = {
   name: string;
   patientNo: string;
   updatedAt: string;
+  age?: number;
+  gender?: string;
+  heightCm?: number;
+  weightKg?: number;
+  waistCm?: number;
+  sbp?: number;
+  dbp?: number;
+  fpg?: number;
+  hba1c?: number;
+  tg?: number;
+  tc?: number;
+  hdl?: number;
+  ldl?: number;
+  alt?: number;
+  ast?: number;
+  ggt?: number;
+  uricAcid?: number;
+  [key: string]: unknown;
 };
 
 export async function fetchDoctorPatientsQuestionnaires(): Promise<DoctorPatientRow[]> {

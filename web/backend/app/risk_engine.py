@@ -7,7 +7,7 @@
 - 脑卒中：调用 ``stroke/multimodal_fusion_predict.py`` 中的 ``predict_stroke_from_user_flat_dict``，
   入参为 ``user_health_to_predict_dict``（数据库问卷映射后的扁平字典）；无模型或失败时回退启发式。
 - 三病间传播展示分 ``propagationScores``：由源-靶概率几何耦合、三病整体几何平均与两端因子余弦相似度合成
-  （``propagation_scores_commonality``），不再使用固定 (RR-1)*P(source) 演示式。
+  （``propagation_scores_commonality``），顺序为 **[糖尿病→脂肪肝, 脂肪肝→脑卒中, 糖尿病→脑卒中]**（与前端箭头一致）。
 """
 
 from __future__ import annotations
@@ -793,7 +793,7 @@ def predict_triple(row: dict[str, Any], *, for_dashboard_cohort: bool = False) -
             "stroke": stroke_modal,
         },
         "probabilities": {"liver": p_liver, "diabetes": p_dm, "stroke": p_stroke},
-        "propagationScores": [prop_liver_dm, prop_dm_stroke, prop_liver_stroke],
+        "propagationScores": [prop_liver_dm, prop_liver_stroke, prop_dm_stroke],
         "scores": {"liver": score(p_liver), "diabetes": score(p_dm), "stroke": score(p_stroke)},
         "risk": {
             "liver": {"level": rl, "label": ll},
@@ -1026,7 +1026,7 @@ def _demo_propagation_scores(cohort: list[dict[str, Any]], rng: random.Random) -
     fd = fac_by.get("糖尿病", [])
     fs = fac_by.get("脑卒中", [])
     a, b, c = propagation_scores_commonality(pl, pd_, ps, fl, fd, fs)
-    return [a, b, c]
+    return [a, c, b]
 
 
 def build_cohort_analysis(rows: list[dict[str, Any]]) -> dict[str, Any]:
@@ -1334,9 +1334,10 @@ def build_cohort_analysis(rows: list[dict[str, Any]]) -> dict[str, Any]:
     fb_d = factors_block[1]["factors"]
     fb_s = factors_block[2]["factors"]
     propagation_triple = propagation_scores_commonality(pl_m, pdm_m, ps_m, fb_l, fb_d, fb_s)
+    pldm, pmds, pls = propagation_triple
 
     return {
-        "propagationScores": list(propagation_triple),
+        "propagationScores": [pldm, pls, pmds],
         "overallRiskDist": overall,
         "comorbidityRegions": regions,
         "dmNafld": dm_nafld,

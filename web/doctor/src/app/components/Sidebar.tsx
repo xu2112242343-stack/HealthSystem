@@ -108,10 +108,10 @@ export function Sidebar({
                   ? 'bg-gradient-to-r from-teal-500 to-cyan-600 text-white hover:from-teal-600 hover:to-cyan-700'
                   : 'text-gray-700 hover:bg-gray-100'
               }`}
-              title={isCollapsed ? '随访历史' : ''}
+              title={isCollapsed ? '患者档案' : ''}
             >
               <History className="w-5 h-5 flex-shrink-0" />
-              {!isCollapsed && <span className="text-sm">患者随访历史</span>}
+              {!isCollapsed && <span className="text-sm">患者档案</span>}
             </button>
           </li>
         </ul>

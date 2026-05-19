@@ -76,7 +76,7 @@ export function Sidebar({
     { id: 'dataCollection', label: '健康数据', icon: FileText },
     { id: 'riskAssessment', label: '风险评估', icon: TrendingUp },
     { id: 'intervention', label: '干预方案', icon: Lightbulb },
-    { id: 'healthLog', label: '随访历史', icon: Clock },
+    { id: 'healthLog', label: '健康档案', icon: Clock },
   ];
 
   return (

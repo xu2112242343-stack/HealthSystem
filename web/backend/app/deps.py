@@ -38,7 +38,7 @@ def get_current_user_health(
 
     row = db.get(UserHealthInfo, uid)
     if row is None:
-        raise HTTPException(status_code=404, detail="用户不存在")
+        raise HTTPException(status_code=401, detail="账户不存在或已注销，请重新登录")
     return row
 
 
@@ -67,7 +67,7 @@ def get_optional_user_health(
 
     row = db.get(UserHealthInfo, uid)
     if row is None:
-        raise HTTPException(status_code=404, detail="用户不存在")
+        raise HTTPException(status_code=401, detail="账户不存在或已注销，请重新登录")
     return row
 
 

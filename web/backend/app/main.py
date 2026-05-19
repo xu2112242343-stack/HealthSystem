@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import base64
 import copy
 import json
 import re
@@ -81,12 +82,57 @@ except OSError:
     _HOSPITALS_FOR_INTERVENTION = []
 
 
+def _cors_allow_origins() -> list[str]:
+    origins = [
+        "http://localhost:5170",
+        "http://127.0.0.1:5170",
+        "http://localhost:5171",
+        "http://127.0.0.1:5171",
+        "http://localhost:5172",
+        "http://127.0.0.1:5172",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ]
+    extra = (os.environ.get("HEALTH_CORS_ORIGINS") or "").strip()
+    if extra:
+        for part in extra.split(","):
+            o = part.strip()
+            if o and o not in origins:
+                origins.append(o)
+    return origins
+
+
+def _lab_ocr_route_registered(app: FastAPI) -> bool:
+    target = "/api/user/me/questionnaire/extract-indicators-from-image"
+    for r in app.routes:
+        if getattr(r, "path", None) == target:
+            return True
+    return False
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     ensure_bcrypt_usable()
     init_db()
     seed_default_admin_if_empty()
     _seed_hospitals_if_empty()
+    ocr_ok = _lab_ocr_route_registered(_app)
+    doubao_ok = bool(
+        (os.environ.get("DOUBAO_API_KEY") or "").strip()
+        or (os.environ.get("ARK_API_KEY") or "").strip()
+        or (os.environ.get("DEEPSEEK_API_KEY") or "").strip()
+    )
+    print(
+        f"[startup] lab_report_ocr_route={'ok' if ocr_ok else 'MISSING'} "
+        f"doubao_api_key={'set' if doubao_ok else 'NOT_SET'}",
+        flush=True,
+    )
+    if not ocr_ok:
+        print(
+            "[startup] WARNING: POST /api/user/me/questionnaire/extract-indicators-from-image "
+            "未注册，请确认已拉取最新代码并重启 uvicorn",
+            flush=True,
+        )
     yield
 
 
@@ -134,6 +180,23 @@ def _seed_hospitals_if_empty() -> None:
 
 app = FastAPI(title="Health Platform API", version="0.2.0", lifespan=lifespan)
 
+# 部署后访问 /health 或 /api/meta 可确认是否为含化验单 OCR 的构建（旧进程无此字段）
+API_BUILD_ID = "2026-05-19-lab-ocr"
+
+
+@app.get("/health")
+def health_probe():
+    """无需登录；优先用此地址确认 8001 是否为当前 HealthSystem 后端。"""
+    db_ok = check_db_connection()
+    return {
+        "status": "ok" if db_ok else "degraded",
+        "service": "health-platform-api",
+        "version": app.version,
+        "buildId": API_BUILD_ID,
+        "database": "reachable" if db_ok else "unreachable",
+        "labReportOcr": _lab_ocr_route_registered(app),
+    }
+
 
 class DisallowApiCachingMiddleware(BaseHTTPMiddleware):
     """禁止缓存 /api/*：多用户共用同一 GET 路径时，浏览器可能忽略 Authorization 而返回他人响应。"""
@@ -151,16 +214,8 @@ app.add_middleware(DisallowApiCachingMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5170",
-        "http://127.0.0.1:5170",
-        "http://localhost:5171",
-        "http://127.0.0.1:5171",
-        "http://localhost:5172",
-        "http://127.0.0.1:5172",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=_cors_allow_origins(),
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3}):(5170|5171|5172|5173)",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -1976,6 +2031,252 @@ def get_current_user_questionnaire(user: UserHealthInfo = Depends(get_current_us
     return user_health_to_questionnaire_bundle(user)
 
 
+# 健康数据「生理指标」问卷字段（与前端 questionnaireForm / user_info 映射一致）
+_QUESTIONNAIRE_INDICATOR_KEYS: tuple[str, ...] = (
+    "sbp",
+    "dbp",
+    "fpg",
+    "hba1c",
+    "tg",
+    "tc",
+    "hdl",
+    "ldl",
+    "alt",
+    "ast",
+    "ggt",
+    "totalBilirubin",
+    "albumin",
+    "creatinine",
+    "bun",
+    "ldh",
+    "chloride",
+    "serumIron",
+    "hematocrit",
+    "rbc",
+    "rdw",
+    "hemoglobin",
+    "lymphocytePct",
+    "uricAcid",
+)
+
+
+def _doubao_client_config() -> tuple[str | None, str, str]:
+    """与 AI 干预接口一致：豆包 / Ark / DeepSeek 兼容读取。"""
+    api_key = (
+        os.environ.get("DOUBAO_API_KEY", "").strip()
+        or os.environ.get("ARK_API_KEY", "").strip()
+        or os.environ.get("DEEPSEEK_API_KEY", "").strip()
+    )
+    base_url = (
+        (os.environ.get("DOUBAO_BASE_URL") or "").strip()
+        or (os.environ.get("ARK_BASE_URL") or "").strip()
+        or (os.environ.get("DEEPSEEK_BASE_URL") or "").strip()
+        or "https://ark.cn-beijing.volces.com/api/v3"
+    ).rstrip("/")
+    model = (
+        (os.environ.get("DOUBAO_MODEL") or "").strip()
+        or (os.environ.get("ARK_MODEL") or "").strip()
+        or (os.environ.get("DEEPSEEK_MODEL") or "").strip()
+        or "doubao-seed-1.6"
+    ).strip()
+    return api_key, base_url, model
+
+
+def _doubao_vision_model(default_text_model: str) -> str:
+    v = (
+        (os.environ.get("DOUBAO_VISION_MODEL") or "").strip()
+        or (os.environ.get("ARK_VISION_MODEL") or "").strip()
+    )
+    return v or default_text_model
+
+
+def _normalize_indicator_ocr_map(raw: Any) -> dict[str, str]:
+    if not isinstance(raw, dict):
+        return {}
+    out: dict[str, str] = {}
+    for k in _QUESTIONNAIRE_INDICATOR_KEYS:
+        if k not in raw:
+            continue
+        v = raw.get(k)
+        if v is None:
+            continue
+        s = str(v).strip()
+        if not s or s.lower() in ("null", "none", "n/a", "—", "-"):
+            continue
+        out[k] = s
+    return out
+
+
+def _call_doubao_vision_indicators(
+    *,
+    image_b64: str,
+    mime: str,
+    model: str,
+    api_key: str,
+    base_url: str,
+    timeout_s: int = 75,
+) -> dict[str, str] | None:
+    """调用方舟 OpenAI 兼容多模态接口，返回指标键值（仅含识别到的项）。"""
+    endpoint = "/chat/completions" if base_url.endswith("/api/v3") else "/api/v3/chat/completions"
+    schema_keys = ", ".join(_QUESTIONNAIRE_INDICATOR_KEYS)
+    system = (
+        "你是医学检验单信息抽取助手。用户上传一张体检/化验报告截图（可能含多列、中英文混排）。\n"
+        "任务：从图中读出与下列字段对应的数值，填入 JSON。无法从图中可靠读出的键不要输出或填 null。\n"
+        "字段说明（键名必须完全一致）：\n"
+        "- sbp/dbp：收缩压/舒张压 mmHg\n"
+        "- fpg：空腹血糖 mmol/L；hba1c：糖化血红蛋白 %\n"
+        "- tg/tc/hdl/ldl：甘油三酯/总胆固醇/HDL-C/LDL-C mmol/L\n"
+        "- alt/ast/ggt：丙氨酸氨基转移酶/天门冬氨酸氨基转移酶/γ-谷氨酰转移酶 U/L\n"
+        "- totalBilirubin μmol/L；albumin g/L；creatinine μmol/L；bun mmol/L；ldh U/L\n"
+        "- chloride mmol/L；serumIron μmol/L\n"
+        "- hematocrit %；rbc ×10^12/L；rdw %；hemoglobin g/L；lymphocytePct %；uricAcid μmol/L\n"
+        "规则：\n"
+        "1) 禁止臆造；看不清就省略该键。\n"
+        "2) 数值用阿拉伯数字字符串，可含小数点；不要带单位。\n"
+        "3) 仅输出一个 JSON 对象，键只能是：" + schema_keys + "；不要 Markdown，不要解释文字。"
+    )
+    data_url = f"data:{mime};base64,{image_b64}"
+    payload: dict[str, Any] = {
+        "model": model,
+        "temperature": 0.05,
+        "stream": False,
+        "max_tokens": 900,
+        "messages": [
+            {"role": "system", "content": system},
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "请从这张检验报告/体检单图片中提取上述指标，仅返回 JSON 对象。",
+                    },
+                    {"type": "image_url", "image_url": {"url": data_url}},
+                ],
+            },
+        ],
+    }
+    req = urllib.request.Request(
+        url=f"{base_url}{endpoint}",
+        method="POST",
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}",
+        },
+        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+    )
+    with urllib.request.urlopen(req, timeout=timeout_s) as resp:
+        raw_text = resp.read().decode("utf-8", errors="ignore")
+    obj = json.loads(raw_text)
+    raw_content = (
+        obj.get("choices", [{}])[0].get("message", {}).get("content")
+        or obj.get("choices", [{}])[0].get("text")
+        or ""
+    )
+    text = _extract_text_from_llm_content(raw_content)
+    parsed = _extract_first_json_object(text)
+    if not parsed:
+        return None
+    return _normalize_indicator_ocr_map(parsed)
+
+
+@app.get("/api/meta")
+def api_meta():
+    """无需登录：确认当前后端是否含化验单 OCR 路由及豆包密钥是否已配置。"""
+    api_key, _, _ = _doubao_client_config()
+    return {
+        "version": app.version,
+        "buildId": API_BUILD_ID,
+        "labReportOcr": _lab_ocr_route_registered(app),
+        "doubaoConfigured": bool(api_key),
+    }
+
+
+@app.post("/api/user/me/questionnaire/extract-indicators-from-image")
+def extract_questionnaire_indicators_from_image(
+    file: UploadFile = File(...),
+    user: UserHealthInfo = Depends(get_current_user_health),
+):
+    """
+    上传 JPG/PNG 化验单或体检报告截图，由豆包（火山方舟）多模态模型抽取「生理指标」问卷字段。
+    需在环境变量中配置 DOUBAO_API_KEY（或 ARK_API_KEY）；可选 DOUBAO_VISION_MODEL 指定视觉模型。
+    """
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="请选择图片文件")
+
+    fn = Path(file.filename).name
+    suffix = Path(fn).suffix.lower()
+    if suffix not in {".jpg", ".jpeg", ".png"}:
+        raise HTTPException(status_code=400, detail="仅支持 JPG、PNG 格式")
+
+    ct = (file.content_type or "").split(";")[0].strip().lower()
+    if ct and ct not in ("image/jpeg", "image/png", "application/octet-stream"):
+        raise HTTPException(status_code=400, detail="文件类型需为 JPG 或 PNG 图片")
+
+    max_bytes = int(os.environ.get("LAB_REPORT_IMAGE_MAX_BYTES", str(6 * 1024 * 1024)))
+    raw = file.file.read()
+    if not raw:
+        raise HTTPException(status_code=400, detail="文件为空")
+    if len(raw) > max_bytes:
+        raise HTTPException(status_code=400, detail=f"图片过大（>{max_bytes // (1024 * 1024)}MB）")
+
+    mime = "image/jpeg" if suffix in (".jpg", ".jpeg") else "image/png"
+    if ct == "image/jpeg":
+        mime = "image/jpeg"
+    elif ct == "image/png":
+        mime = "image/png"
+
+    api_key, base_url, text_model = _doubao_client_config()
+    if not api_key:
+        raise HTTPException(status_code=503, detail="服务端未配置大模型 API 密钥，无法识别图片")
+
+    vision_model = _doubao_vision_model(text_model)
+    b64 = base64.standard_b64encode(raw).decode("ascii")
+
+    try:
+        extracted = _call_doubao_vision_indicators(
+            image_b64=b64,
+            mime=mime,
+            model=vision_model,
+            api_key=api_key,
+            base_url=base_url,
+        )
+    except urllib.error.HTTPError as e:
+        detail = ""
+        try:
+            detail = e.read().decode("utf-8", errors="ignore").replace("\n", " ")[:400]
+        except Exception:
+            detail = str(e)
+        print(f"[lab_ocr] user_id={user.id} http_error status={e.code} detail={detail!r}", flush=True)
+        raise HTTPException(status_code=502, detail="大模型服务返回错误，请稍后重试或检查视觉模型是否支持图片输入") from None
+    except TimeoutError:
+        print(f"[lab_ocr] user_id={user.id} timeout model={vision_model}", flush=True)
+        raise HTTPException(status_code=504, detail="识别超时，请换一张更清晰或更小的图片后重试") from None
+    except urllib.error.URLError as e:
+        print(f"[lab_ocr] user_id={user.id} url_error {e!r}", flush=True)
+        raise HTTPException(status_code=502, detail="无法连接大模型服务，请稍后重试") from None
+    except Exception as e:
+        print(f"[lab_ocr] user_id={user.id} err={type(e).__name__}: {e}", flush=True)
+        raise HTTPException(status_code=502, detail="识别失败，请稍后重试") from None
+
+    if not extracted:
+        raise HTTPException(
+            status_code=422,
+            detail="未能从图片中解析出有效指标，请确保上传的是清晰的检验单截图，或尝试裁剪后重试",
+        )
+
+    print(
+        f"[lab_ocr] user_id={user.id} model={vision_model} filled={len(extracted)} keys={list(extracted.keys())}",
+        flush=True,
+    )
+    return {
+        "ok": True,
+        "provider": "doubao",
+        "model": vision_model,
+        "indicators": extracted,
+        "filledCount": len(extracted),
+    }
+
+
 def _image_field_by_axis(axis: str) -> str:
     ax = (axis or "").strip().lower()
     if ax == "liver":
@@ -3049,9 +3350,3 @@ def risk_predict(
         "source": raw["source"],
         "strokeImageStatus": _stroke_image_status_for_risk_predict(base),
     }
-
-
-@app.get("/health")
-def health():
-    db_ok = check_db_connection()
-    return {"status": "ok" if db_ok else "degraded", "database": "reachable" if db_ok else "unreachable"}

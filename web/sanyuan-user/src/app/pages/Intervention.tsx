@@ -15,8 +15,13 @@ import {
   Phone,
   Stethoscope,
   UtensilsCrossed,
+  FileText,
 } from 'lucide-react';
 import { HealthGuideArticlePage } from '@/app/components/HealthGuideArticlePage';
+import {
+  fetchLatestPhysicalExamReportDetail,
+  PhysicalExamReportModal,
+} from '@/app/components/HealthLog';
 import { cn } from '@/app/components/ui/utils';
 import { fetchInterventionHospitals, type InterventionHospital } from '@/lib/api/hospitals';
 import { fetchHealthGuidesRecommended, type HealthGuideArticle } from '@/lib/api/healthGuides';
@@ -28,6 +33,7 @@ import {
   type AiInterventionRecommendation,
 } from '@/lib/api/aiIntervention';
 import { fetchRiskPredict, type RiskPredictResponse } from '@/lib/api/riskPredict';
+import type { HealthHistoryDetailResponse } from '@/lib/api/healthHistory';
 import { formatDistanceKm, haversineDistanceKm } from '@/lib/geo';
 import { useGeolocation } from '@/lib/useGeolocation';
 import { QUESTIONNAIRE_UPDATED_EVENT } from '@/lib/questionnaireSnapshot';
@@ -184,6 +190,11 @@ export function Intervention() {
   const [hospitalsLoading, setHospitalsLoading] = useState(true);
   const [hospitalsError, setHospitalsError] = useState<string | null>(null);
 
+  const [peReportOpen, setPeReportOpen] = useState(false);
+  const [peReportLoading, setPeReportLoading] = useState(false);
+  const [peReportError, setPeReportError] = useState<string | null>(null);
+  const [peReportDetail, setPeReportDetail] = useState<HealthHistoryDetailResponse | null>(null);
+
   const sortedHospitals = useMemo((): HospitalWithDistance[] => {
     const mapped: HospitalWithDistance[] = hospitals.map((h) => ({
       ...h,
@@ -320,6 +331,25 @@ export function Intervention() {
     loadHospitals();
   }, [accessToken]);
 
+  const openLatestPhysicalExamReport = useCallback(async () => {
+    setPeReportOpen(true);
+    setPeReportLoading(true);
+    setPeReportError(null);
+    setPeReportDetail(null);
+    if (!accessToken) {
+      setPeReportError('请先登录后再查看体检报告。');
+      setPeReportLoading(false);
+      return;
+    }
+    const r = await fetchLatestPhysicalExamReportDetail();
+    if (!r.ok) {
+      setPeReportError(r.error);
+    } else {
+      setPeReportDetail(r.detail);
+    }
+    setPeReportLoading(false);
+  }, [accessToken]);
+
   const emptyHintGuide = (
     <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50/80 px-6 py-16 text-center">
       <p className="text-sm font-medium text-gray-700">暂无推荐内容</p>
@@ -401,59 +431,51 @@ export function Intervention() {
             <span>{aiError}</span>
           </div>
         ) : aiRec ? (
-          <div className="flex flex-col gap-7 xl:flex-row xl:items-stretch">
-            <div className="min-w-0 flex-1">
-              <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:items-stretch">
-                <AiRecInsightCard
-                  icon={ClipboardList}
-                  title="推荐理由"
-                  subtitle="与当前评估结果、习惯因素相关的要点"
-                  topBarClass="from-emerald-500 via-teal-500 to-emerald-600"
-                  iconWrapClass="bg-gradient-to-br from-emerald-50 to-teal-50/80 text-emerald-700 ring-emerald-100/90"
-                >
-                  <AiRecBulletList items={aiRec.reasons} accent="emerald" />
-                </AiRecInsightCard>
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:items-stretch">
+            <AiRecInsightCard
+              icon={ClipboardList}
+              title="推荐理由"
+              subtitle="与当前评估结果、习惯因素相关的要点"
+              topBarClass="from-emerald-500 via-teal-500 to-emerald-600"
+              iconWrapClass="bg-gradient-to-br from-emerald-50 to-teal-50/80 text-emerald-700 ring-emerald-100/90"
+            >
+              <AiRecBulletList items={aiRec.reasons} accent="emerald" />
+            </AiRecInsightCard>
 
-                <AiRecInsightCard
-                  icon={UtensilsCrossed}
-                  title="饮食建议"
-                  subtitle="膳食结构与热量、营养素的一般原则"
-                  topBarClass="from-teal-500 via-cyan-500 to-teal-600"
-                  iconWrapClass="bg-gradient-to-br from-teal-50 to-cyan-50/70 text-teal-800 ring-teal-100/90"
-                >
-                  <AiRecBulletList items={aiRec.diet} accent="teal" />
-                </AiRecInsightCard>
+            <AiRecInsightCard
+              icon={UtensilsCrossed}
+              title="饮食建议"
+              subtitle="膳食结构与热量、营养素的一般原则"
+              topBarClass="from-teal-500 via-cyan-500 to-teal-600"
+              iconWrapClass="bg-gradient-to-br from-teal-50 to-cyan-50/70 text-teal-800 ring-teal-100/90"
+            >
+              <AiRecBulletList items={aiRec.diet} accent="teal" />
+            </AiRecInsightCard>
 
-                <AiRecInsightCard
-                  icon={Activity}
-                  title="运动与生活习惯"
-                  subtitle="身体活动、作息与心理调节"
-                  topBarClass="from-cyan-500 via-emerald-500 to-teal-500"
-                  iconWrapClass="bg-gradient-to-br from-cyan-50 to-emerald-50/70 text-cyan-900 ring-cyan-100/90"
-                >
-                  <div className="space-y-5">
-                    <div>
-                      <div className="mb-3 flex items-center gap-2 text-emerald-900/90">
-                        <Activity className="h-4 w-4 text-emerald-600" aria-hidden />
-                        <span className="text-xs font-bold uppercase tracking-wider">运动</span>
-                      </div>
-                      <AiRecBulletList items={aiRec.exercise} accent="cyan" />
-                    </div>
-                    <div className="border-t border-gray-100/90 pt-5">
-                      <div className="mb-3 flex items-center gap-2 text-emerald-900/90">
-                        <MoonStar className="h-4 w-4 text-teal-600" aria-hidden />
-                        <span className="text-xs font-bold uppercase tracking-wider">生活习惯</span>
-                      </div>
-                      <AiRecBulletList items={aiRec.lifestyle} accent="emerald" />
-                    </div>
+            <AiRecInsightCard
+              icon={Activity}
+              title="运动与生活习惯"
+              subtitle="身体活动、作息与心理调节"
+              topBarClass="from-cyan-500 via-emerald-500 to-teal-500"
+              iconWrapClass="bg-gradient-to-br from-cyan-50 to-emerald-50/70 text-cyan-900 ring-cyan-100/90"
+            >
+              <div className="space-y-5">
+                <div>
+                  <div className="mb-3 flex items-center gap-2 text-emerald-900/90">
+                    <Activity className="h-4 w-4 text-emerald-600" aria-hidden />
+                    <span className="text-xs font-bold uppercase tracking-wider">运动</span>
                   </div>
-                </AiRecInsightCard>
+                  <AiRecBulletList items={aiRec.exercise} accent="cyan" />
+                </div>
+                <div className="border-t border-gray-100/90 pt-5">
+                  <div className="mb-3 flex items-center gap-2 text-emerald-900/90">
+                    <MoonStar className="h-4 w-4 text-teal-600" aria-hidden />
+                    <span className="text-xs font-bold uppercase tracking-wider">生活习惯</span>
+                  </div>
+                  <AiRecBulletList items={aiRec.lifestyle} accent="emerald" />
+                </div>
               </div>
-            </div>
-
-            <div className="hidden w-full shrink-0 xl:block xl:w-[11.5rem]">
-              <InterventionRiskFigure riskPredict={riskPredict} />
-            </div>
+            </AiRecInsightCard>
           </div>
         ) : null}
       </div>
@@ -504,13 +526,38 @@ export function Intervention() {
             </div>
           </div>
 
-          <div className="hidden shrink-0 md:block">
-            <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600">
+          <div className="flex shrink-0 flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
+            <button
+              type="button"
+              onClick={() => void openLatestPhysicalExamReport()}
+              disabled={peReportLoading}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-emerald-200/90 bg-white px-4 py-2.5 text-sm font-semibold text-emerald-900 shadow-sm ring-1 ring-emerald-100/80 transition-colors hover:bg-emerald-50/90 disabled:pointer-events-none disabled:opacity-60"
+            >
+              {peReportLoading ? (
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
+              ) : (
+                <FileText className="h-4 w-4 shrink-0" aria-hidden />
+              )}
+              查看本次体检报告
+            </button>
+            <div className="hidden h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 md:flex">
               <Lightbulb className="h-8 w-8 text-white" />
             </div>
           </div>
         </div>
       </div>
+
+      <PhysicalExamReportModal
+        open={peReportOpen}
+        onClose={() => {
+          setPeReportOpen(false);
+          setPeReportError(null);
+          setPeReportDetail(null);
+        }}
+        loading={peReportLoading}
+        errorMsg={peReportError}
+        detail={peReportDetail}
+      />
 
       <div className="mb-6 rounded-xl border border-gray-200 bg-white p-4">
         <div className="flex flex-wrap gap-3">

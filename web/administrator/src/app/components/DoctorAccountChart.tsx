@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart } from 'recharts';
 
 import { fetchAdminDashboardOverview } from '@/lib/api/adminDashboard';
+import { getDemoDoctorRegistration30d, isAdminDemoMode } from '@/lib/adminDemoMock';
 
 // 医生账户管理模块图表
 export function DoctorAccountChart() {
@@ -9,6 +10,11 @@ export function DoctorAccountChart() {
   const [data, setData] = useState<{ day: string; 新注册: number }[]>([]);
 
   useEffect(() => {
+    if (isAdminDemoMode()) {
+      setData(getDemoDoctorRegistration30d());
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     const load = async () => {
       setLoading(true);

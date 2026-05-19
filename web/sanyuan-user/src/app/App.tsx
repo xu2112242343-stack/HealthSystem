@@ -105,7 +105,7 @@ function App() {
     dataCollection: { title: '健康数据', component: DataCollection },
     riskAssessment: { title: '风险评估', component: RiskAssessment },
     intervention: { title: '干预方案', component: Intervention },
-    healthLog: { title: '随访历史', component: HealthLogPage },
+    healthLog: { title: '健康档案', component: HealthLogPage },
   };
 
   const CurrentPageComponent = pageConfig[currentPage as keyof typeof pageConfig]?.component || HomePage;

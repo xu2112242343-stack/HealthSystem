@@ -20,7 +20,7 @@ export type DiseaseAnalysisDashboardMeta = {
 };
 
 export type DiseaseAnalysisDashboard = {
-  /** 风险传播三角用的三病分数，与用户端 demo 一致时可由后端下发 */
+  /** 传播分顺序：[糖尿病→脂肪肝, 脂肪肝→脑卒中, 糖尿病→脑卒中]（与用户端图示一致） */
   propagationScores: readonly [number, number, number];
   overallRiskDist: { low: number; mid: number; high: number };
   comorbidityRegions: Record<'1' | '2' | '3' | '12' | '13' | '23' | '123', number>;

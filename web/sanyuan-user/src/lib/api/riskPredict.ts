@@ -27,6 +27,7 @@ export type StrokeImageStatus = {
 };
 
 export type RiskPredictResponse = {
+  /** 三病传播分项分值（%），顺序为：[糖尿病→脂肪肝, 脂肪肝→脑卒中, 糖尿病→脑卒中] */
   propagationScores: readonly [number, number, number];
   compositeIndex: number;
   diseases: RiskPredictDisease[];

@@ -8,6 +8,12 @@ import { ModuleDetailPage } from './components/ModuleDetailPage';
 import { SubFunctionRouter } from './components/SubFunctionRouter';
 import { Stethoscope, Users, Database, Building2, FileText } from 'lucide-react';
 import { fetchAdminActivityToday, fetchAdminDashboardOverview } from '@/lib/api/adminDashboard';
+import {
+  getDemoActivityToday24h,
+  getDemoDashboardTotals,
+  getDemoRegistrationTrendWeek,
+  isAdminDemoMode,
+} from '@/lib/adminDemoMock';
 
 interface SubFunction{
   name: string;
@@ -81,7 +87,21 @@ function App() {
     },
   ];
 
+  const demoMode = isAdminDemoMode();
+
   useEffect(() => {
+    if (demoMode) {
+      const t = getDemoDashboardTotals();
+      setTotalUsers(t.users);
+      setTotalDoctors(t.doctors);
+      setTotalHospitals(t.hospitals);
+      setTotalArticles(t.articles);
+      setTrendData(getDemoRegistrationTrendWeek());
+      setActivityData(getDemoActivityToday24h());
+      setDashboardLoading(false);
+      return;
+    }
+
     let cancelled = false;
     const load = async () => {
       setDashboardLoading(true);
@@ -125,7 +145,7 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [demoMode]);
 
   const totalUsersText = useMemo(() => (totalUsers === null ? '—' : String(totalUsers)), [totalUsers]);
   const totalDoctorsText = useMemo(

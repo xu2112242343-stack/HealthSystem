@@ -1,4 +1,4 @@
-import { getJson, postJson } from '@/lib/api';
+import { ApiError, apiRequest, getJson, postJson } from '@/lib/api';
 import type { BasicState, IndicatorsState, LifestyleState } from '@/lib/types/questionnaireForm';
 import { initialBasic, initialIndicators, initialLifestyle } from '@/lib/types/questionnaireForm';
 
@@ -62,4 +62,49 @@ export async function saveUserQuestionnaireToServer(payload: {
     body.derived = payload.derived;
   }
   return postJson<{ ok: boolean }, Record<string, unknown>>('/api/user/me/questionnaire', body);
+}
+
+function messageFromFastApiDetail(body: unknown): string {
+  if (!body || typeof body !== 'object') return '';
+  const o = body as Record<string, unknown>;
+  if (typeof o.message === 'string' && o.message.trim()) return o.message.trim();
+  const d = o.detail;
+  if (typeof d === 'string' && d.trim()) return d.trim();
+  if (Array.isArray(d) && d.length > 0) {
+    const first = d[0] as Record<string, unknown>;
+    if (typeof first.msg === 'string' && first.msg.trim()) return first.msg.trim();
+  }
+  return '';
+}
+
+export type ExtractIndicatorsFromImageResponse = {
+  ok: boolean;
+  provider?: string;
+  model?: string;
+  indicators: Partial<IndicatorsState> & Record<string, string>;
+  filledCount?: number;
+};
+
+/**
+ * POST multipart：上传 JPG/PNG 检验单截图，由服务端豆包多模态抽取生理指标字段（需已登录）。
+ */
+export async function extractIndicatorsFromLabImage(file: File): Promise<ExtractIndicatorsFromImageResponse> {
+  const fd = new FormData();
+  fd.append('file', file);
+  const res = await apiRequest('/api/user/me/questionnaire/extract-indicators-from-image', {
+    method: 'POST',
+    body: fd,
+    timeoutMs: 120_000,
+  });
+  let body: unknown;
+  try {
+    body = await res.json();
+  } catch {
+    body = undefined;
+  }
+  if (!res.ok) {
+    const msg = messageFromFastApiDetail(body) || res.statusText || `HTTP ${res.status}`;
+    throw new ApiError(msg, res.status, body);
+  }
+  return body as ExtractIndicatorsFromImageResponse;
 }

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   FileText,
   CheckCircle2,
@@ -41,7 +41,11 @@ import {
 import { getScopedQuestionnaireCompletionKey } from '@/lib/questionnaireStorageKeys';
 import { ApiError, getStoredAccessToken } from '@/lib/api';
 import { fetchAppAccess } from '@/lib/api/appAccess';
-import { fetchUserQuestionnaireFromServer, saveUserQuestionnaireToServer } from '@/lib/api/userQuestionnaire';
+import {
+  extractIndicatorsFromLabImage,
+  fetchUserQuestionnaireFromServer,
+  saveUserQuestionnaireToServer,
+} from '@/lib/api/userQuestionnaire';
 import { useStoredAccessToken } from '@/lib/useStoredAccessToken';
 import {
   deleteUserAxisImage,
@@ -260,6 +264,10 @@ export function DataCollection() {
   const [showBasicForm, setShowBasicForm] = useState(false);
   const [showLifestyleForm, setShowLifestyleForm] = useState(false);
   const [showIndicatorsForm, setShowIndicatorsForm] = useState(false);
+  const labReportOcrInputRef = useRef<HTMLInputElement>(null);
+  const [labReportOcrLoading, setLabReportOcrLoading] = useState(false);
+  const [labReportOcrError, setLabReportOcrError] = useState<string | null>(null);
+  const [labReportOcrNotice, setLabReportOcrNotice] = useState<string | null>(null);
   const [showImagingForm, setShowImagingForm] = useState(false);
   const [showDerivedPanel, setShowDerivedPanel] = useState(false);
 
@@ -526,6 +534,54 @@ export function DataCollection() {
       setCloudSyncing(false);
     }
   }, [basic, lifestyle, indicators, derived]);
+
+  const runLabReportImageOcr = useCallback(
+    async (file: File) => {
+      setLabReportOcrError(null);
+      setLabReportOcrNotice(null);
+      if (!accessToken) {
+        setLabReportOcrError('请先登录账户后再使用「化验单图像识别」；该功能需在服务端调用豆包多模态模型。');
+        return;
+      }
+      setLabReportOcrLoading(true);
+      try {
+        const res = await extractIndicatorsFromLabImage(file);
+        const patch = res.indicators || {};
+        const entries = Object.entries(patch).filter(([, v]) => String(v ?? '').trim() !== '');
+        if (entries.length === 0) {
+          setLabReportOcrError('未识别到可用数值，请换一张更清晰的检验单截图。');
+          return;
+        }
+        setIndicators((prev) => ({ ...prev, ...Object.fromEntries(entries) }));
+        const modelHint = res.model ? ` 模型：${res.model}。` : '';
+        setLabReportOcrNotice(
+          `已根据图片自动填入 ${entries.length} 项生理指标；数值由大模型从图中读取，请务必与纸质报告核对后再点保存。${modelHint}`,
+        );
+      } catch (e) {
+        let msg = e instanceof ApiError ? e.message : e instanceof Error ? e.message : '识别失败';
+        if (e instanceof ApiError && e.status === 404) {
+          const d =
+            typeof e.body === 'object' && e.body && 'detail' in e.body
+              ? String((e.body as { detail?: unknown }).detail)
+              : '';
+          if (!d || d === 'Not Found') {
+            msg =
+              '后端未提供化验单识别接口（404）。请在服务器拉取最新代码并重启 FastAPI（8001），访问 /api/meta 应看到 labReportOcr: true。';
+          }
+        }
+        if (e instanceof ApiError && e.status === 401) {
+          msg = `${msg} 请退出后重新登录。`;
+        }
+        if (e instanceof ApiError && e.status === 503) {
+          msg = `${msg} 请在 web/backend/.env 配置 DOUBAO_API_KEY 后重启后端。`;
+        }
+        setLabReportOcrError(msg);
+      } finally {
+        setLabReportOcrLoading(false);
+      }
+    },
+    [accessToken],
+  );
 
   const syncQuestionnaireToAccount = () => {
     void pushQuestionnaireRemote();
@@ -1288,7 +1344,7 @@ export function DataCollection() {
                   <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">问卷模块</p>
                   <h2 className="mt-0.5 text-xl font-bold tracking-tight text-gray-900 sm:text-2xl">生理指标</h2>
                   <p className="mt-2 max-w-2xl text-sm leading-relaxed text-gray-600">
-                    共 24 项，名称与单位与国内常见检验报告单一致，请对照化验单逐项填写；保存后将写入本机并与账户同步（若已登录）。
+                    共 24 项，名称与单位与国内常见检验报告单一致，请对照化验单逐项填写；保存后将写入本机并与账户同步（若已登录）。也可使用下方「化验单图像识别」上传报告截图由豆包模型预填。
                   </p>
                 </div>
               </div>
@@ -1304,6 +1360,72 @@ export function DataCollection() {
           </div>
 
           <div className="space-y-6 px-5 py-6 sm:px-7 sm:py-7">
+            <input
+              ref={labReportOcrInputRef}
+              type="file"
+              accept="image/jpeg,image/jpg,image/png,.jpg,.jpeg,.png"
+              className="hidden"
+              aria-hidden
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                e.target.value = '';
+                if (f) void runLabReportImageOcr(f);
+              }}
+            />
+            <section className="rounded-xl border border-emerald-200/70 bg-gradient-to-br from-emerald-50/95 via-white to-teal-50/50 p-5 shadow-sm ring-1 ring-emerald-100/70 sm:p-6">
+              <div className="flex flex-wrap items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/25">
+                  <Sparkles className="h-5 w-5" aria-hidden />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-sm font-bold text-gray-900">化验单图像识别</h3>
+                  <p className="mt-1.5 text-xs leading-relaxed text-gray-600">
+                    上传 JPG / PNG 格式的检验报告或体检单截图，系统将调用与干预方案相同渠道的豆包大模型自动抽取本页生理指标并填入下方表单。识别结果请务必与纸质报告核对；不构成医学结论。
+                  </p>
+                  <div className="mt-4 flex flex-wrap items-center gap-3">
+                    <button
+                      type="button"
+                      disabled={labReportOcrLoading}
+                      onClick={() => labReportOcrInputRef.current?.click()}
+                      className={cn(
+                        'inline-flex min-h-10 items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold shadow-sm transition-all',
+                        labReportOcrLoading
+                          ? 'cursor-not-allowed bg-slate-200 text-slate-500'
+                          : 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-emerald-500/20 hover:from-emerald-600 hover:to-teal-700 hover:shadow-md',
+                      )}
+                    >
+                      {labReportOcrLoading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
+                          识别中…
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="h-4 w-4 shrink-0" aria-hidden />
+                          选择检验单图片
+                        </>
+                      )}
+                    </button>
+                    {!accessToken ? (
+                      <span className="text-xs text-amber-800">需先登录账户方可使用服务端识别。</span>
+                    ) : null}
+                  </div>
+                  {labReportOcrError ? (
+                    <p className="mt-3 flex items-start gap-2 text-xs font-medium text-rose-700">
+                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                      <span>{labReportOcrError}</span>
+                    </p>
+                  ) : null}
+                  {labReportOcrNotice ? (
+                    <p className="mt-3 flex items-start gap-2 text-xs font-medium text-emerald-900">
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden />
+                      <span>{labReportOcrNotice}</span>
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            </section>
+
             <section className="rounded-xl border border-slate-200/70 bg-slate-50/50 p-5 shadow-sm ring-1 ring-slate-100/80 sm:p-6">
               <div className="mb-5 flex flex-wrap items-center gap-2 border-b border-slate-200/60 pb-4">
                 <span
