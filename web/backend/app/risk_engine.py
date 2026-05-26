@@ -81,6 +81,9 @@ _PROP_FUSION_LAMBDA = 0.5  # 最终分中关联层权重（方案 A）
 _PROP_CAUSAL_ALPHA = 0.65  # 因果层：直接效应
 _PROP_CAUSAL_BETA = 0.35  # 因果层：间接效应
 _PROP_DIAG_HIGH = 0.42  # 关联/因果 0~1 强度「偏高」阈值
+# 动态 dis_core 权重：w_pair·pair_geo + w_g3·G3（替代固定 0.62/0.38）
+_PROP_PAIR_WEIGHT_MIN = 0.38
+_PROP_PAIR_WEIGHT_MAX = 0.72
 
 _PROP_CONFOUNDER_FRAGMENTS = (
     "age",
@@ -167,6 +170,50 @@ def _row_confound_intensity(row: dict[str, Any] | None) -> float:
     return sum(parts) / len(parts) if parts else 0.0
 
 
+def _dynamic_pair_g3_weights(
+    pair_geo: float,
+    g3: float,
+    *,
+    confound_ratio: float,
+    mechanism_cos: float,
+    row_confound: float,
+    edge_key: str,
+) -> tuple[float, float, dict[str, float]]:
+    """
+    动态计算 dis_core 中 pair_geo 与 G₃ 的权重（和为 1）。
+
+    - 基线：按 pair_geo、G₃ 相对强度分配（数据驱动，非固定 0.62/0.38）
+    - 机制因子相似↑ → 提高 pair 权重（边特异性共现）
+    - 混淆因子占比 / 问卷共同危险↑ → 提高 G₃ 权重（三病共同背景）
+    - 临床边先验：糖→肝、肝→卒略偏 pair；糖→卒在共病背景强时略偏 G₃
+    """
+    eps = 1e-9
+    baseline_pair = pair_geo / (pair_geo + g3 + eps)
+    baseline_g3 = g3 / (pair_geo + g3 + eps)
+
+    pair_logit = math.log(baseline_pair + eps) - math.log(baseline_g3 + eps)
+    pair_logit += 0.55 * max(0.0, min(1.0, mechanism_cos))
+    pair_logit -= 0.50 * max(0.0, min(1.0, confound_ratio))
+    pair_logit -= 0.35 * max(0.0, min(1.0, row_confound))
+
+    if edge_key == "diabetes-liver":
+        pair_logit += 0.10
+    elif edge_key == "liver-stroke":
+        pair_logit += 0.06
+    elif edge_key == "diabetes-stroke":
+        pair_logit -= 0.08 + 0.12 * max(0.0, min(1.0, g3))
+
+    w_pair = 1.0 / (1.0 + math.exp(-pair_logit))
+    w_pair = max(_PROP_PAIR_WEIGHT_MIN, min(_PROP_PAIR_WEIGHT_MAX, w_pair))
+    w_g3 = 1.0 - w_pair
+    return w_pair, w_g3, {
+        "wPair": round(w_pair, 4),
+        "wG3": round(w_g3, 4),
+        "baselinePair": round(baseline_pair, 4),
+        "baselineG3": round(baseline_g3, 4),
+    }
+
+
 def _propagation_diagnosis(blend_assoc: float, blend_causal: float) -> dict[str, str]:
     a_hi = blend_assoc >= _PROP_DIAG_HIGH
     c_hi = blend_causal >= _PROP_DIAG_HIGH
@@ -205,14 +252,24 @@ def _propagation_edge_fusion(
     ps = max(0.0, min(1.0, p_src))
     pt = max(0.0, min(1.0, p_tgt))
     pair_geo = math.sqrt(ps * pt) if ps > 0 and pt > 0 else 0.0
-    dis_core = 0.62 * pair_geo + 0.38 * g3
 
     any_fac = bool(fa or fb)
     confound_cos, mechanism_cos, cos_full = _split_factor_cosines(fa, fb) if any_fac else (0.0, 0.0, 0.0)
+    confound_ratio = (
+        confound_cos / (confound_cos + mechanism_cos + 1e-9) if any_fac else max(0.0, row_confound * 0.5)
+    )
+
+    w_pair, w_g3, weight_detail = _dynamic_pair_g3_weights(
+        pair_geo,
+        g3,
+        confound_ratio=confound_ratio,
+        mechanism_cos=mechanism_cos,
+        row_confound=row_confound,
+        edge_key=edge_key,
+    )
+    dis_core = w_pair * pair_geo + w_g3 * g3
 
     if any_fac:
-        denom = confound_cos + mechanism_cos + 1e-9
-        confound_ratio = confound_cos / denom
         cos_weight = 0.5 * max(0.22, 1.0 - 0.55 * min(1.0, confound_ratio))
         cos_term = 0.72 * mechanism_cos + 0.28 * cos_full
         blend_assoc = (1.0 - cos_weight) * dis_core + cos_weight * cos_term
@@ -263,11 +320,17 @@ def _propagation_edge_fusion(
         "diagnosis": diag,
         "decomposition": {
             "pairGeo": round(pair_geo, 4),
+            "wPair": weight_detail["wPair"],
+            "wG3": weight_detail["wG3"],
+            "baselinePair": weight_detail["baselinePair"],
+            "baselineG3": weight_detail["baselineG3"],
+            "disCore": round(dis_core, 4),
             "direct": round(direct_raw, 4),
             "indirect": round(indirect_proxy, 4),
             "confounding": round(confound_proxy, 4),
             "confoundCosine": round(confound_cos, 4),
             "mechanismCosine": round(mechanism_cos, 4),
+            "confoundRatio": round(confound_ratio, 4),
         },
     }
 
@@ -285,7 +348,7 @@ def propagation_scores_fusion(
     """
     三边传播展示分（0~98）及逐边解释。
 
-    第一层（关联）：保留几何耦合 + 因子余弦，并用混淆占比动态下调余弦权重（因果校准）。
+    第一层（关联）：pair_geo 与 G₃ 采用动态权重（非固定 0.62/0.38）+ 因子余弦，混淆占比下调余弦权重。
     第二层（因果）：将共现分解为直接/间接/混淆分量，α·直接 + β·间接。
     第三层（融合）：λ·关联 + (1-λ)·因果；差异诊断见 ``diagnosis``。
 
