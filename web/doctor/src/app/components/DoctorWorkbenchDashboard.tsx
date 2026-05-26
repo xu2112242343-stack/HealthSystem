@@ -4,6 +4,7 @@ import {
   fetchDiseaseAnalysisDashboard,
   invalidateDiseaseAnalysisDashboardCache,
 } from '@/lib/api/diseaseAnalysisDashboard';
+import { isDoctorDemoMode } from '@/lib/doctorDemoMock';
 import { Loader2 } from 'lucide-react';
 
 const DoctorWorkbenchCharts = lazy(() => import('./DoctorWorkbenchCharts'));
@@ -98,6 +99,11 @@ export function DoctorWorkbenchDashboard() {
     <div className="mx-auto max-w-[1600px] space-y-6 p-6">
       <header className="rounded-xl border border-gray-200 bg-white px-5 py-4">
         <h1 className="text-lg font-semibold text-gray-900">工作台总览</h1>
+        {isDoctorDemoMode() ? (
+          <p className="mt-1 text-xs text-slate-500">
+            演示数据：总人数与高中低风险、韦恩图七区人数均按 {totalRegistered.toLocaleString()} 人一致统计（与管理端总用户数对齐）。
+          </p>
+        ) : null}
       </header>
 
       <section className="rounded-xl border border-gray-200 bg-white p-5">

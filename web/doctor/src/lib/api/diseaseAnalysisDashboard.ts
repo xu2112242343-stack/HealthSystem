@@ -1,4 +1,5 @@
 import { getJson } from '@/lib/api';
+import { getDemoDiseaseAnalysisDashboard, isDoctorDemoMode } from '@/lib/doctorDemoMock';
 import {
   chartDmGivenNafld,
   chartFactorImportance,
@@ -52,6 +53,12 @@ export function invalidateDiseaseAnalysisDashboardCache(): void {
 }
 
 export async function fetchDiseaseAnalysisDashboard(cohortSize = 0): Promise<DiseaseAnalysisDashboard> {
+  if (isDoctorDemoMode()) {
+    const data = getDemoDiseaseAnalysisDashboard(cohortSize);
+    dashboardCache = { cohortSize, data, fetchedAt: Date.now() };
+    return data;
+  }
+
   const now = Date.now();
   const refresh = bustServerDashboardCache;
   if (bustServerDashboardCache) bustServerDashboardCache = false;

@@ -94,8 +94,8 @@ function HealthCompositeScoreGraphic({
     >
       <div className="overflow-hidden rounded-xl border border-slate-200/90 bg-[#f5f9fc] shadow-sm ring-1 ring-slate-200/50">
         <div className="border-b border-slate-200/80 bg-white/90 px-3 py-2">
-          <p className="text-[11px] font-semibold tracking-wide text-slate-700">健康综合指数 · 示意模型</p>
-          <p className="mt-0.5 text-[10px] leading-snug text-slate-500">仅供健康教育与风险评估参考，非诊断依据</p>
+          <p className="text-sm font-semibold tracking-wide text-slate-700">健康综合指数 · 示意模型</p>
+          <p className="mt-0.5 text-xs leading-snug text-slate-500">仅供健康教育与风险评估参考，非诊断依据</p>
         </div>
         <div className="relative overflow-hidden px-1 pb-1 pt-2">
           <div
@@ -160,7 +160,7 @@ function HealthCompositeScoreGraphic({
         </svg>
         </div>
       </div>
-      <p className="mt-2.5 px-1 text-center text-[10px] leading-relaxed text-slate-500">
+      <p className="mt-2.5 px-1 text-center text-xs leading-relaxed text-slate-500">
         正面人体为<strong className="font-medium text-slate-600">健康宣教示意图</strong>
         ，非影像学表现；外环为模型输出的相对指数示意，不可替代临床检查与医师判断。
       </p>
@@ -524,7 +524,7 @@ export function HomePage() {
               <Sparkles className="h-6 w-6" aria-hidden />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">工作台</p>
+              <p className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-500">工作台</p>
               <h2 className="mt-0.5 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">健康数据总览</h2>
               <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-slate-600 sm:mt-2">
                 采集进度、综合健康指数示意与模型解析的患病风险因素分布，便于您快速把握当前状态与后续行动。
@@ -790,14 +790,14 @@ export function HomePage() {
                     >
                       <span
                         className={`font-medium leading-tight text-gray-800 ${
-                          compactLabel ? 'text-[10px]' : 'text-xs'
+                          compactLabel ? 'text-xs' : 'text-xs'
                         }`}
                       >
                         {factor.displayName}
                       </span>
                       <span
                         className={`tabular-nums text-slate-500 ${
-                          compactLabel ? 'text-[9px]' : 'text-[11px]'
+                          compactLabel ? 'text-xs' : 'text-sm'
                         }`}
                       >
                         {factor.value}%
@@ -829,7 +829,7 @@ export function HomePage() {
               <Stethoscope className="h-5 w-5" aria-hidden />
             </div>
             <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">风险摘要</p>
+              <p className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-500">风险摘要</p>
               <h2 className="mt-0.5 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">风险评估</h2>
               <p className="mt-1.5 text-sm leading-relaxed text-slate-600">肝病、糖尿病与脑卒中模型输出摘要；详情以专页为准。</p>
               {riskLoading && (
@@ -981,6 +981,7 @@ export function HomePage() {
         <DiseaseRiskPropagationModule
           diseases={propagationDiseases}
           propagationScores={remoteRisk?.propagationScores}
+          propagationDetail={remoteRisk?.propagationDetail}
           selectedId={propagationSelectedId}
           onSelectDisease={setPropagationSelectedId}
           compact

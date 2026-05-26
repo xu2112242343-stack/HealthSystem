@@ -3341,6 +3341,7 @@ def risk_predict(
 
     return {
         "propagationScores": raw.get("propagationScores", [0, 0, 0]),
+        "propagationDetail": raw.get("propagationDetail"),
         "compositeIndex": composite,
         "diseases": [
             pack("liver", "MAFLD", "肝病"),

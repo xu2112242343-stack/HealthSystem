@@ -22,7 +22,7 @@ export function StrokeRiskRadialBandsChart({ data }: { data: StrokeByDmRow[] }) 
 
   return (
     <div className="w-full">
-      <p className="mb-2 text-center text-[11px] text-slate-500 sm:text-xs">
+      <p className="mb-2 text-center text-sm text-slate-500 sm:text-xs">
         径向带长度 = 该组中脑卒中高风险占比（%）；内环 / 外环对应两个分组，灰底为 0–100% 轨道。
       </p>
       <div className="h-[300px] w-full sm:h-[280px]">

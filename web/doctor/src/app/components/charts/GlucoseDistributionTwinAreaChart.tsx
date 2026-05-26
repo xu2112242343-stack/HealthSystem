@@ -24,7 +24,7 @@ export function GlucoseDistributionTwinAreaChart({ data }: { data: GlucoseHistRo
 
   return (
     <div className="w-full">
-      <p className="mb-2 text-center text-[11px] text-slate-500 sm:text-xs">
+      <p className="mb-2 text-center text-sm text-slate-500 sm:text-xs">
         平滑曲线连接各区间计数；半透明面积层叠展示两组分布轮廓，纵轴仍为人数（非密度估计）。
       </p>
       <div className="h-[300px] w-full sm:h-[280px]">

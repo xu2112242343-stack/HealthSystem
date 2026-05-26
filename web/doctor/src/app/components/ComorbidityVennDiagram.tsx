@@ -1,20 +1,13 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { PLATFORM_DEMO_COMORBIDITY, PLATFORM_DEMO_PATIENT_COHORT } from '@shared/demo/platformDemo';
 
 /** 1=代谢相关脂肪性肝病，2=2型糖尿病，3=脑卒中 */
 export type VennRegionKey = '1' | '2' | '3' | '12' | '13' | '23' | '123';
 
-/** 内置示例子集总人数（七种交集划分人数之和） */
-export const COMORBIDITY_VENN_SAMPLE_TOTAL = 160;
+/** 默认与平台演示队列一致（七种区划之和 = 总患者数） */
+export const COMORBIDITY_VENN_SAMPLE_TOTAL = PLATFORM_DEMO_PATIENT_COHORT;
 
-const DEFAULT_COUNTS: Record<VennRegionKey, number> = {
-  '1': 74,
-  '2': 12,
-  '3': 8,
-  '12': 36,
-  '13': 6,
-  '23': 4,
-  '123': 20,
-};
+const DEFAULT_COUNTS: Record<VennRegionKey, number> = { ...PLATFORM_DEMO_COMORBIDITY };
 
 const REGION_META: Record<VennRegionKey, { name: string }> = {
   '1': { name: '仅代谢相关脂肪性肝病' },
@@ -28,13 +21,13 @@ const REGION_META: Record<VennRegionKey, { name: string }> = {
 
 /** 热区：圆心、半径；绘制顺序从前到后，后者优先捕获（123 最后） */
 const HIT_ZONES: { key: VennRegionKey; cx: number; cy: number; r: number }[] = [
-  { key: '1', cx: 128, cy: 168, r: 36 },
-  { key: '2', cx: 378, cy: 168, r: 36 },
-  { key: '3', cx: 248, cy: 298, r: 34 },
-  { key: '12', cx: 248, cy: 150, r: 24 },
-  { key: '13', cx: 198, cy: 218, r: 22 },
-  { key: '23', cx: 302, cy: 218, r: 22 },
-  { key: '123', cx: 248, cy: 208, r: 17 },
+  { key: '1', cx: 128, cy: 168, r: 42 },
+  { key: '2', cx: 378, cy: 168, r: 42 },
+  { key: '3', cx: 248, cy: 298, r: 40 },
+  { key: '12', cx: 248, cy: 150, r: 30 },
+  { key: '13', cx: 198, cy: 218, r: 28 },
+  { key: '23', cx: 302, cy: 218, r: 28 },
+  { key: '123', cx: 248, cy: 208, r: 22 },
 ];
 
 export interface ComorbidityVennProps {
@@ -48,7 +41,7 @@ export function ComorbidityVennDiagram({ regions: regionsProp }: ComorbidityVenn
   const counts = useMemo(() => ({ ...DEFAULT_COUNTS, ...regionsProp }), [regionsProp]);
   const total = useMemo(
     () => (Object.keys(counts) as VennRegionKey[]).reduce((s, k) => s + counts[k], 0),
-    [counts]
+    [counts],
   );
 
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -75,16 +68,16 @@ export function ComorbidityVennDiagram({ regions: regionsProp }: ComorbidityVenn
   return (
     <figure className="w-full overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-br from-slate-50/90 via-white to-teal-50/30 p-5 sm:p-6 shadow-sm">
       <div ref={wrapRef} className="relative">
-        <p className="mb-2 text-center text-[11px] text-slate-500 leading-relaxed px-1">
-          三圆对应代谢相关脂肪性肝病、2 型糖尿病与脑卒中；从仅患一种、两病重叠到三者并存共{' '}
-          <span className="font-medium text-slate-600">7</span> 类，悬停各重叠区域查看人数与占比。
+        <p className="mb-2 text-center text-sm text-slate-500 leading-relaxed px-1">
+          三圆对应代谢相关脂肪性肝病、2 型糖尿病与脑卒中；七种互斥区划合计{' '}
+          <span className="font-medium tabular-nums text-slate-600">{total.toLocaleString()}</span> 人，与上方总患者数一致；悬停各重叠区域查看人数与占比。
         </p>
 
         <svg
           viewBox="0 0 520 378"
           className="mx-auto w-full max-w-xl h-auto drop-shadow-sm"
           role="img"
-          aria-label={`共病韦恩图七种交集划分示意，示例子集共 ${total} 人：${ariaSummary}。悬停各热区查看详情。`}
+          aria-label={`共病韦恩图七种交集划分，共 ${total} 人：${ariaSummary}。悬停各热区查看详情。`}
         >
           <defs>
             <radialGradient id="venn-liver" cx="32%" cy="32%" r="78%">
@@ -162,21 +155,21 @@ export function ComorbidityVennDiagram({ regions: regionsProp }: ComorbidityVenn
             }}
             role="tooltip"
           >
-            <p className="text-[11px] font-semibold leading-snug text-white">{tipBody.name}</p>
+            <p className="text-sm font-semibold leading-snug text-white">{tipBody.name}</p>
             <p className="mt-2 text-sm font-bold tabular-nums text-white" style={{ fontFamily: font }}>
-              {tipCount} 人
+              {tipCount.toLocaleString()} 人
             </p>
             <p className="mt-0.5 text-xs tabular-nums text-slate-300" style={{ fontFamily: font }}>
-              {pct(tipCount)}%
+              占全集 {pct(tipCount)}%
             </p>
           </div>
         )}
       </div>
 
-      <figcaption className="mt-4 text-center text-[11px] leading-relaxed text-slate-500 px-1 border-t border-slate-200/60 pt-4">
+      <figcaption className="mt-4 text-center text-sm leading-relaxed text-slate-500 px-1 border-t border-slate-200/60 pt-4">
         三色圆为<span className="font-medium text-slate-600">结构示意</span>
-        ；上述七类人数之和为示例子集（共{' '}
-        <span className="tabular-nums font-medium text-slate-600">{total}</span> 人），
+        ；上述七类人数之和为{' '}
+        <span className="tabular-nums font-medium text-slate-600">{total.toLocaleString()}</span> 人（与总体统计总患者数一致），
         <span className="font-medium text-slate-600">不按面积精确比例</span>。热区为近似中心点，便于交互。
       </figcaption>
     </figure>

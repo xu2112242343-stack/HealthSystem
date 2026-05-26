@@ -49,7 +49,7 @@ export function FactorContributionRadarChart({ factors }: { factors: FactorRow[]
       className="w-full"
       onMouseLeave={() => setHighlight(null)}
     >
-      <p className="mb-3 text-center text-[11px] text-slate-500 sm:text-xs">
+      <p className="mb-3 text-center text-sm text-slate-500 sm:text-xs">
         左侧为多维轮廓，右侧为按权重排序的条形；悬停雷达顶点、轴名或条形可联动高亮。
       </p>
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6 lg:items-stretch">

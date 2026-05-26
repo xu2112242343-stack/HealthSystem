@@ -55,14 +55,14 @@ function AiRecBulletList({ items, accent = 'emerald' as const }: { items: string
         <li key={`${idx}-${t.slice(0, 24)}`} className="flex gap-3.5">
           <span
             className={cn(
-              'flex h-7 min-w-[1.75rem] shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-[11px] font-bold tabular-nums ring-1',
+              'flex h-7 min-w-[1.75rem] shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-sm font-bold tabular-nums ring-1',
               ring,
             )}
             aria-hidden
           >
             {idx + 1}
           </span>
-          <span className="pt-0.5 text-[13px] leading-relaxed text-gray-700">{t}</span>
+          <span className="pt-0.5 text-sm leading-relaxed text-gray-700">{t}</span>
         </li>
       ))}
     </ul>
@@ -132,7 +132,7 @@ function InterventionRiskFigure({ riskPredict }: { riskPredict: RiskPredictRespo
         }}
         aria-hidden
       />
-      <p className="relative text-center text-[10px] font-semibold uppercase tracking-[0.22em] text-gray-400">
+      <p className="relative text-center text-xs font-semibold uppercase tracking-[0.22em] text-gray-400">
         风险示意
       </p>
       <svg
@@ -159,7 +159,7 @@ function InterventionRiskFigure({ riskPredict }: { riskPredict: RiskPredictRespo
         ) : null}
         <path d={bodyPath} fill="url(#interventionFigBody)" opacity={0.95} />
       </svg>
-      <p className="relative mt-4 text-center text-[10px] leading-relaxed text-gray-600">
+      <p className="relative mt-4 text-center text-xs leading-relaxed text-gray-600">
         {strokeHigh
           ? '模型提示脑卒中风险偏高：请优先遵循右侧运动与生活习惯要点，并及时就医评估。'
           : diabetesHigh || liverHigh
@@ -383,7 +383,7 @@ export function Intervention() {
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-xl font-bold tracking-tight text-gray-900 sm:text-[1.35rem]">AI 个性化推荐</h2>
-                <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800 ring-1 ring-emerald-200/80">
+                <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-sm font-semibold text-emerald-800 ring-1 ring-emerald-200/80">
                   模型生成
                 </span>
                 <button
@@ -396,7 +396,7 @@ export function Intervention() {
                   重新分析
                 </button>
               </div>
-              <p className="mt-2 max-w-3xl text-sm leading-relaxed text-gray-600 sm:text-[15px]">
+              <p className="mt-2 max-w-3xl text-sm leading-relaxed text-gray-600 sm:text-base">
                 结合当前风险分层与问卷生活习惯，整理为可执行的饮食、运动与日常管理要点，便于对照落实。
               </p>
               <p className="mt-3 inline-flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">

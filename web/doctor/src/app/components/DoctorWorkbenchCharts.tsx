@@ -119,7 +119,7 @@ function RiskFactorsPanel({ factors }: { factors: Array<{ name: string; value: n
               <div className="mb-2 flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-start gap-2.5">
                   <span
-                    className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md text-[11px] font-bold tabular-nums text-white shadow-sm"
+                    className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md text-sm font-bold tabular-nums text-white shadow-sm"
                     style={{ backgroundColor: factor.color }}
                   >
                     {index + 1}

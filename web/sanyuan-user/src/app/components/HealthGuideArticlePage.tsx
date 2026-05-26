@@ -129,7 +129,7 @@ function ArticleBodyFlow({ article }: { article: HealthGuideArticle }) {
         return (
           <div key={`text-${i}`} className="space-y-3">
             {paras.map((p, j) => (
-              <p key={j} className="text-justify text-[15px] leading-7 text-gray-800">
+              <p key={j} className="text-justify text-base leading-7 text-gray-800">
                 {p}
               </p>
             ))}

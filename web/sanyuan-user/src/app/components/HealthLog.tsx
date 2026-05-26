@@ -1083,7 +1083,7 @@ export function PhysicalExamReportModal(props: {
                   <div key={d.key} className="border border-gray-400 bg-white px-3 py-4 text-center shadow-sm">
                     <div className="text-xs text-gray-600">{d.name}</div>
                     <div className={`mt-2 text-lg font-bold ${riskValueClass(d.level)}`}>{riskLabelZh(d.level)}</div>
-                    <div className="mt-1.5 text-[11px] text-gray-500">估算概率 {(d.p * 100).toFixed(1)}%</div>
+                    <div className="mt-1.5 text-sm text-gray-500">估算概率 {(d.p * 100).toFixed(1)}%</div>
                   </div>
                 ))}
               </div>
@@ -1161,7 +1161,7 @@ export function PhysicalExamReportModal(props: {
                 )}
               </div>
 
-              <p className="border-t border-gray-300 pt-4 text-center text-[11px] leading-relaxed text-gray-500">
+              <p className="border-t border-gray-300 pt-4 text-center text-sm leading-relaxed text-gray-500">
                 本报告基于用户自报信息与模型估算生成，仅供健康管理与生活方式干预参考，不可替代执业医师面诊及正式医学诊断。
               </p>
 
@@ -1187,7 +1187,7 @@ export function PhysicalExamReportModal(props: {
                             key={`${sec.title}-${idx}-${row.label}`}
                             className="flex flex-col rounded border border-gray-100 px-2 py-1.5"
                           >
-                            <span className="text-[10px] text-gray-500">{row.label}</span>
+                            <span className="text-xs text-gray-500">{row.label}</span>
                             <span className="text-xs font-medium text-gray-900">{row.value}</span>
                           </div>
                         ))}
@@ -1778,7 +1778,7 @@ export function HealthLog() {
                             {row.values.map((v, i) => (
                               <td key={`${row.name}-${i}`} className="p-0">
                                 <div
-                                  className={`h-10 w-full border border-white text-center text-[11px] font-semibold leading-[2.45rem] ${riskCellClassByLabel(v)}`}
+                                  className={`h-10 w-full border border-white text-center text-sm font-semibold leading-[2.45rem] ${riskCellClassByLabel(v)}`}
                                 >
                                   {v}
                                 </div>

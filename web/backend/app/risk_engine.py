@@ -6,8 +6,8 @@
 - 肝病：问卷启发式概率。
 - 脑卒中：调用 ``stroke/multimodal_fusion_predict.py`` 中的 ``predict_stroke_from_user_flat_dict``，
   入参为 ``user_health_to_predict_dict``（数据库问卷映射后的扁平字典）；无模型或失败时回退启发式。
-- 三病间传播展示分 ``propagationScores``：由源-靶概率几何耦合、三病整体几何平均与两端因子余弦相似度合成
-  （``propagation_scores_commonality``），顺序为 **[糖尿病→脂肪肝, 脂肪肝→脑卒中, 糖尿病→脑卒中]**（与前端箭头一致）。
+- 三病间传播展示分 ``propagationScores``：关联-因果双层融合（``propagation_scores_fusion``），
+  顺序为 **[糖尿病→脂肪肝, 脂肪肝→脑卒中, 糖尿病→脑卒中]**；详见 ``propagationDetail``。
 """
 
 from __future__ import annotations
@@ -76,6 +76,253 @@ def _triple_geometric_mean(p_l: float, p_d: float, p_s: float) -> float:
     return (a * b * c) ** (1.0 / 3.0)
 
 
+# 传播展示：关联-因果双层（见项目 ref_doc「耦合关联与因果分析」融合方案）
+_PROP_FUSION_LAMBDA = 0.5  # 最终分中关联层权重（方案 A）
+_PROP_CAUSAL_ALPHA = 0.65  # 因果层：直接效应
+_PROP_CAUSAL_BETA = 0.35  # 因果层：间接效应
+_PROP_DIAG_HIGH = 0.42  # 关联/因果 0~1 强度「偏高」阈值
+
+_PROP_CONFOUNDER_FRAGMENTS = (
+    "age",
+    "龄",
+    "bmi",
+    "体重",
+    "肥胖",
+    "sex",
+    "性别",
+    "smok",
+    "吸烟",
+    "hypert",
+    "血压",
+    "hyperten",
+    "血脂",
+    "lipid",
+    "chol",
+    "遗传",
+    "family",
+    "家族史",
+    "waist",
+    "腰围",
+    "metabolic",
+    "代谢",
+)
+
+_PROP_MEDIATOR_FRAGMENTS: dict[str, tuple[str, ...]] = {
+    "diabetes-liver": ("glucose", "血糖", "insulin", "胰岛素", "hba1c", "glyc", "糖化"),
+    "liver-stroke": ("alt", "ast", "肝", "inflam", "炎症", "fat", "脂质", "fibrosis", "纤维化", "nafld"),
+    "diabetes-stroke": ("glucose", "血糖", "血压", "lipid", "血脂", "hba1c", "insulin", "glyc"),
+}
+
+
+def _factor_key_is_confounder(key: str) -> bool:
+    k = key.lower()
+    return any(frag in k for frag in _PROP_CONFOUNDER_FRAGMENTS)
+
+
+def _split_factor_cosines(
+    fa: dict[str, float], fb: dict[str, float]
+) -> tuple[float, float, float]:
+    """返回 (混淆因子余弦, 机制/中介因子余弦, 全量余弦)。"""
+    conf_a: dict[str, float] = {}
+    conf_b: dict[str, float] = {}
+    mech_a: dict[str, float] = {}
+    mech_b: dict[str, float] = {}
+    for k in set(fa) | set(fb):
+        if _factor_key_is_confounder(k):
+            if k in fa:
+                conf_a[k] = fa[k]
+            if k in fb:
+                conf_b[k] = fb[k]
+        else:
+            if k in fa:
+                mech_a[k] = fa[k]
+            if k in fb:
+                mech_b[k] = fb[k]
+    return (
+        _cosine_similarity_weight_vectors(conf_a, conf_b),
+        _cosine_similarity_weight_vectors(mech_a, mech_b),
+        _cosine_similarity_weight_vectors(fa, fb),
+    )
+
+
+def _row_confound_intensity(row: dict[str, Any] | None) -> float:
+    """问卷中可观测共同危险因素强度（0~1），用于因果层混淆估计。"""
+    if not row:
+        return 0.0
+    parts: list[float] = []
+    if row.get("age") is not None:
+        try:
+            parts.append(max(0.0, min(1.0, (float(row["age"]) - 45.0) / 28.0)))
+        except (TypeError, ValueError):
+            pass
+    if row.get("bmi") is not None:
+        try:
+            parts.append(max(0.0, min(1.0, (float(row["bmi"]) - 24.0) / 10.0)))
+        except (TypeError, ValueError):
+            pass
+    if row.get("smoking") in (True, 1, "1", "是", "yes", "Yes"):
+        parts.append(0.35)
+    if row.get("hypertension") in (True, 1, "1", "是", "yes", "Yes"):
+        parts.append(0.3)
+    return sum(parts) / len(parts) if parts else 0.0
+
+
+def _propagation_diagnosis(blend_assoc: float, blend_causal: float) -> dict[str, str]:
+    a_hi = blend_assoc >= _PROP_DIAG_HIGH
+    c_hi = blend_causal >= _PROP_DIAG_HIGH
+    if a_hi and c_hi:
+        return {
+            "code": "both_high",
+            "label": "关联与因果一致偏强，干预路径价值较高",
+        }
+    if a_hi and not c_hi:
+        return {
+            "code": "confounding",
+            "label": "关联偏强、因果偏弱，可能受年龄/肥胖等共同危险因素驱动",
+        }
+    if not a_hi and c_hi:
+        return {
+            "code": "masked_direct",
+            "label": "因果信号存在但关联展示偏弱，可能经中介路径或测量掩盖",
+        }
+    return {"code": "weak", "label": "关联与因果均偏弱，该方向传播示意权重较低"}
+
+
+def _propagation_edge_fusion(
+    edge_key: str,
+    p_src: float,
+    p_tgt: float,
+    g3: float,
+    fa: dict[str, float],
+    fb: dict[str, float],
+    *,
+    p_liver: float,
+    p_dm: float,
+    p_stroke: float,
+    row_confound: float,
+) -> dict[str, Any]:
+    """单条有向边的关联层、因果层与融合展示分。"""
+    ps = max(0.0, min(1.0, p_src))
+    pt = max(0.0, min(1.0, p_tgt))
+    pair_geo = math.sqrt(ps * pt) if ps > 0 and pt > 0 else 0.0
+    dis_core = 0.62 * pair_geo + 0.38 * g3
+
+    any_fac = bool(fa or fb)
+    confound_cos, mechanism_cos, cos_full = _split_factor_cosines(fa, fb) if any_fac else (0.0, 0.0, 0.0)
+
+    if any_fac:
+        denom = confound_cos + mechanism_cos + 1e-9
+        confound_ratio = confound_cos / denom
+        cos_weight = 0.5 * max(0.22, 1.0 - 0.55 * min(1.0, confound_ratio))
+        cos_term = 0.72 * mechanism_cos + 0.28 * cos_full
+        blend_assoc = (1.0 - cos_weight) * dis_core + cos_weight * cos_term
+    else:
+        blend_assoc = dis_core
+
+    confound_proxy = (
+        max(confound_cos, row_confound * 0.4) * min(ps, pt) * (0.55 + 0.45 * g3)
+    )
+    if edge_key == "diabetes-stroke":
+        pl = max(0.0, min(1.0, p_liver))
+        indirect_proxy = (
+            math.sqrt(ps * pl) * math.sqrt(pl * pt) * (0.45 + 0.55 * mechanism_cos)
+            if pl > 0
+            else 0.0
+        )
+    elif edge_key == "diabetes-liver":
+        indirect_proxy = 0.14 * pair_geo * mechanism_cos
+    else:
+        indirect_proxy = 0.18 * pair_geo * (0.35 + 0.65 * mechanism_cos)
+
+    direct_raw = max(0.0, pair_geo - 0.50 * confound_proxy - 0.50 * indirect_proxy)
+    total_mass = direct_raw + indirect_proxy
+    if total_mass > pair_geo and total_mass > 0:
+        scale = pair_geo / total_mass
+        direct_raw *= scale
+        indirect_proxy *= scale
+
+    denom_geo = max(pair_geo, 1e-9)
+    direct_norm = min(1.0, direct_raw / denom_geo)
+    indirect_norm = min(1.0, indirect_proxy / denom_geo)
+    blend_causal = _PROP_CAUSAL_ALPHA * direct_norm + _PROP_CAUSAL_BETA * indirect_norm
+    blend_causal = min(1.0, blend_causal * (0.82 + 0.18 * pair_geo))
+
+    blend_final = _PROP_FUSION_LAMBDA * blend_assoc + (1.0 - _PROP_FUSION_LAMBDA) * blend_causal
+    impact = int(max(0, min(98, round(100.0 * blend_final))))
+
+    def to_score(v: float) -> int:
+        return int(max(0, min(98, round(100.0 * v))))
+
+    diag = _propagation_diagnosis(blend_assoc, blend_causal)
+    return {
+        "impact": impact,
+        "association": round(blend_assoc, 4),
+        "causal": round(blend_causal, 4),
+        "associationScore": to_score(blend_assoc),
+        "causalScore": to_score(blend_causal),
+        "diagnosis": diag,
+        "decomposition": {
+            "pairGeo": round(pair_geo, 4),
+            "direct": round(direct_raw, 4),
+            "indirect": round(indirect_proxy, 4),
+            "confounding": round(confound_proxy, 4),
+            "confoundCosine": round(confound_cos, 4),
+            "mechanismCosine": round(mechanism_cos, 4),
+        },
+    }
+
+
+def propagation_scores_fusion(
+    p_liver: float,
+    p_dm: float,
+    p_stroke: float,
+    fac_liver: list[dict[str, Any]],
+    fac_dm: list[dict[str, Any]],
+    fac_stroke: list[dict[str, Any]],
+    *,
+    row: dict[str, Any] | None = None,
+) -> tuple[tuple[int, int, int], dict[str, Any]]:
+    """
+    三边传播展示分（0~98）及逐边解释。
+
+    第一层（关联）：保留几何耦合 + 因子余弦，并用混淆占比动态下调余弦权重（因果校准）。
+    第二层（因果）：将共现分解为直接/间接/混淆分量，α·直接 + β·间接。
+    第三层（融合）：λ·关联 + (1-λ)·因果；差异诊断见 ``diagnosis``。
+
+    返回顺序：**[糖尿病→脂肪肝, 脂肪肝→脑卒中, 糖尿病→脑卒中]**。
+    非经队列因果发现/DML 的 ATE，为在线可解释的启发式因果层。
+    """
+    wl = _factor_weights_map(fac_liver)
+    wd = _factor_weights_map(fac_dm)
+    ws = _factor_weights_map(fac_stroke)
+    g3 = _triple_geometric_mean(p_liver, p_dm, p_stroke)
+    row_confound = _row_confound_intensity(row)
+
+    edges: list[tuple[str, float, float, dict[str, float], dict[str, float]]] = [
+        ("diabetes-liver", p_dm, p_liver, wd, wl),
+        ("liver-stroke", p_liver, p_stroke, wl, ws),
+        ("diabetes-stroke", p_dm, p_stroke, wd, ws),
+    ]
+    detail: dict[str, Any] = {}
+    impacts: list[int] = []
+    for key, ps, pt, fa, fb in edges:
+        block = _propagation_edge_fusion(
+            key,
+            ps,
+            pt,
+            g3,
+            fa,
+            fb,
+            p_liver=p_liver,
+            p_dm=p_dm,
+            p_stroke=p_stroke,
+            row_confound=row_confound,
+        )
+        detail[key] = block
+        impacts.append(int(block["impact"]))
+    return (impacts[0], impacts[1], impacts[2]), detail
+
+
 def propagation_scores_commonality(
     p_liver: float,
     p_dm: float,
@@ -83,38 +330,14 @@ def propagation_scores_commonality(
     fac_liver: list[dict[str, Any]],
     fac_dm: list[dict[str, Any]],
     fac_stroke: list[dict[str, Any]],
+    *,
+    row: dict[str, Any] | None = None,
 ) -> tuple[int, int, int]:
-    """
-    三边传播展示分（0~98）：综合
-    - 该有向边源-靶病种概率的几何耦合 sqrt(p_src·p_tgt)；
-    - 三病概率几何平均（三病整体代谢/血管风险共性）；
-    - 边两端 Top 因子权重向量的余弦相似度（重要因子共性）。
-    用于前端三角/流带上的相对强度示意，非独立流行病学 RR 估计。
-    """
-    wl = _factor_weights_map(fac_liver)
-    wd = _factor_weights_map(fac_dm)
-    ws = _factor_weights_map(fac_stroke)
-    g3 = _triple_geometric_mean(p_liver, p_dm, p_stroke)
-    any_fac = bool(wl or wd or ws)
-
-    def edge(p_src: float, p_tgt: float, fa: dict[str, float], fb: dict[str, float]) -> int:
-        ps = max(0.0, min(1.0, p_src))
-        pt = max(0.0, min(1.0, p_tgt))
-        pair_geo = math.sqrt(ps * pt)
-        # 沿边的「疾病层」共性：直连两端 + 三病整体负荷
-        dis_core = 0.62 * pair_geo + 0.38 * g3
-        cos_ab = _cosine_similarity_weight_vectors(fa, fb) if any_fac else 0.0
-        if any_fac:
-            blend = 0.5 * dis_core + 0.5 * cos_ab
-        else:
-            blend = dis_core
-        return int(max(0, min(98, round(100.0 * blend))))
-
-    return (
-        edge(p_liver, p_dm, wl, wd),
-        edge(p_dm, p_stroke, wd, ws),
-        edge(p_liver, p_stroke, wl, ws),
+    """兼容旧调用方：仅返回三边融合后的展示分。"""
+    scores, _ = propagation_scores_fusion(
+        p_liver, p_dm, p_stroke, fac_liver, fac_dm, fac_stroke, row=row
     )
+    return scores
 
 
 def _fuse_struct_image(
@@ -776,13 +999,14 @@ def predict_triple(row: dict[str, Any], *, for_dashboard_cohort: bool = False) -
     rd, dl = band(p_dm)
     rs, sl = band(p_stroke)
 
-    prop_liver_dm, prop_dm_stroke, prop_liver_stroke = propagation_scores_commonality(
+    prop_scores, prop_detail = propagation_scores_fusion(
         p_liver,
         p_dm,
         p_stroke,
         fac_liver,
         fac_dm,
         fac_stroke,
+        row=row,
     )
 
     return {
@@ -793,7 +1017,8 @@ def predict_triple(row: dict[str, Any], *, for_dashboard_cohort: bool = False) -
             "stroke": stroke_modal,
         },
         "probabilities": {"liver": p_liver, "diabetes": p_dm, "stroke": p_stroke},
-        "propagationScores": [prop_liver_dm, prop_liver_stroke, prop_dm_stroke],
+        "propagationScores": list(prop_scores),
+        "propagationDetail": prop_detail,
         "scores": {"liver": score(p_liver), "diabetes": score(p_dm), "stroke": score(p_stroke)},
         "risk": {
             "liver": {"level": rl, "label": ll},
@@ -1025,8 +1250,7 @@ def _demo_propagation_scores(cohort: list[dict[str, Any]], rng: random.Random) -
     fl = fac_by.get("脂肪肝", [])
     fd = fac_by.get("糖尿病", [])
     fs = fac_by.get("脑卒中", [])
-    a, b, c = propagation_scores_commonality(pl, pd_, ps, fl, fd, fs)
-    return [a, c, b]
+    return list(propagation_scores_commonality(pl, pd_, ps, fl, fd, fs))
 
 
 def build_cohort_analysis(rows: list[dict[str, Any]]) -> dict[str, Any]:
@@ -1334,10 +1558,9 @@ def build_cohort_analysis(rows: list[dict[str, Any]]) -> dict[str, Any]:
     fb_d = factors_block[1]["factors"]
     fb_s = factors_block[2]["factors"]
     propagation_triple = propagation_scores_commonality(pl_m, pdm_m, ps_m, fb_l, fb_d, fb_s)
-    pldm, pmds, pls = propagation_triple
 
     return {
-        "propagationScores": [pldm, pls, pmds],
+        "propagationScores": list(propagation_triple),
         "overallRiskDist": overall,
         "comorbidityRegions": regions,
         "dmNafld": dm_nafld,

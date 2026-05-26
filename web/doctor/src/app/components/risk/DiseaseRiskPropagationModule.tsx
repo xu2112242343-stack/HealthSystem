@@ -430,7 +430,7 @@ export function DiseaseRiskPropagationModule({
           <p
             className={cn(
               'font-bold uppercase tracking-wide text-gray-500',
-              isCompact ? 'text-xs' : 'text-[11px]',
+              isCompact ? 'text-xs' : 'text-sm',
             )}
           >
             {d.shortName}
@@ -446,7 +446,7 @@ export function DiseaseRiskPropagationModule({
           <span
             className={cn(
               'mt-1 inline-flex rounded-full px-2 font-semibold',
-              isCompact ? 'py-0.5 text-xs' : 'py-0.5 text-[10px]',
+              isCompact ? 'py-0.5 text-xs' : 'py-0.5 text-xs',
               riskPill(d.risk),
             )}
           >
@@ -611,14 +611,14 @@ export function DiseaseRiskPropagationModule({
                   >
                     <span
                       className={cn(
-                        'text-[11px] font-semibold tabular-nums tracking-tight',
+                        'text-sm font-semibold tabular-nums tracking-tight',
                         st.labelClass,
                       )}
                     >
                       {`风险↑${e.impact}%`}
                     </span>
                     {e.key === 'liver-stroke' ? (
-                      <span className="text-[10px] font-medium leading-none text-slate-500">
+                      <span className="text-xs font-medium leading-none text-slate-500">
                         直接影响
                       </span>
                     ) : null}
@@ -661,7 +661,7 @@ export function DiseaseRiskPropagationModule({
                 style={{ left: edgeTipPos.x, top: edgeTipPos.y }}
                 role="tooltip"
               >
-                <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-800/90">
+                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-emerald-800/90">
                   {hoverEdgeKey === 'liver-diabetes'
                     ? '肝病 → 糖尿病'
                     : hoverEdgeKey === 'diabetes-stroke'
@@ -672,7 +672,7 @@ export function DiseaseRiskPropagationModule({
               </div>
             ) : null}
             <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[15] px-2 pb-1.5 pt-10 bg-gradient-to-t from-white/95 via-transparent to-transparent">
-              <p className="text-center text-[10px] leading-snug text-slate-400">
+              <p className="text-center text-xs leading-snug text-slate-400">
                 流带越宽传播指数相对越高；三角指向
                 <strong className="font-medium text-slate-600">作用目标病种</strong>
                 ；<span className="text-slate-500">悬停流带在旁侧查看说明</span>。

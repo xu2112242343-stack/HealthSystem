@@ -13,7 +13,7 @@ export function ConditionalProbabilityLollipopChart({ data }: { data: Conditiona
 
   return (
     <div className="w-full space-y-8 px-1 sm:px-4">
-      <p className="text-center text-[11px] text-slate-500 sm:text-xs">
+      <p className="text-center text-sm text-slate-500 sm:text-xs">
         双轨棒棒糖图：同一横轴比例尺下对比 P(糖尿病|分组)；圆点即估计概率，色带为 0→该点的示意轨长。
       </p>
       {data.map((row) => {
@@ -43,7 +43,7 @@ export function ConditionalProbabilityLollipopChart({ data }: { data: Conditiona
           <span className="font-bold tabular-nums">{deltaPp.toFixed(1)}</span> 个百分点（percentage points）
         </p>
       ) : null}
-      <div className="flex justify-between border-t border-slate-100 pt-3 text-[10px] font-medium text-slate-400">
+      <div className="flex justify-between border-t border-slate-100 pt-3 text-xs font-medium text-slate-400">
         <span>0%</span>
         <span>横轴参照上限 {(maxP * 100).toFixed(0)}%（非概率上界，仅便于同屏对比）</span>
       </div>

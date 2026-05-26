@@ -743,7 +743,7 @@ export function DataCollection() {
                   </div>
                   <div className="min-w-0">
                     <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">健康数据</h1>
-                    <p className="mt-2 max-w-2xl text-sm leading-relaxed text-gray-600 sm:text-[15px]">
+                    <p className="mt-2 max-w-2xl text-sm leading-relaxed text-gray-600 sm:text-base">
                       多维问卷采集、影像资料与检验指标结构化录入，支撑风险评估与干预建议（请按模块逐项保存）。
                     </p>
                   </div>
@@ -803,7 +803,7 @@ export function DataCollection() {
         <div className="border-t border-gray-100/80 bg-gradient-to-b from-slate-50/90 to-white px-5 py-5 sm:px-8 sm:py-6">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">采集完成度</p>
+              <p className="text-sm font-semibold uppercase tracking-[0.14em] text-gray-500">采集完成度</p>
               <p className="mt-1 flex items-baseline gap-0.5 tabular-nums">
                 <span className="text-3xl font-bold text-emerald-700 sm:text-4xl">{pct.toFixed(0)}</span>
                 <span className="text-lg font-semibold text-gray-400">%</span>
@@ -893,7 +893,7 @@ export function DataCollection() {
                   <User className="h-5 w-5" aria-hidden />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">问卷模块</p>
+                  <p className="text-sm font-semibold uppercase tracking-[0.14em] text-gray-500">问卷模块</p>
                   <h2 className="mt-0.5 text-xl font-bold tracking-tight text-gray-900 sm:text-2xl">基础信息</h2>
                   <p className="mt-2 max-w-xl text-sm leading-relaxed text-gray-600">
                     共 20 项：人口学与体测、心血管与糖代谢病史、用药与典型症状。逐项填写后点击保存，将写入本机并与账户同步（若已登录）。
@@ -919,7 +919,7 @@ export function DataCollection() {
                   aria-hidden
                 />
                 <h3 className="text-sm font-bold text-gray-900">人口学信息与体格测量</h3>
-                <span className="ml-auto rounded-full bg-white/95 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600 ring-1 ring-slate-200/80">
+                <span className="ml-auto rounded-full bg-white/95 px-2.5 py-0.5 text-sm font-semibold text-slate-600 ring-1 ring-slate-200/80">
                   题 1–5
                 </span>
               </div>
@@ -993,7 +993,7 @@ export function DataCollection() {
                   aria-hidden
                 />
                 <h3 className="text-sm font-bold text-gray-900">心血管相关（是 / 否）</h3>
-                <span className="ml-auto rounded-full bg-white/95 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600 ring-1 ring-slate-200/80">
+                <span className="ml-auto rounded-full bg-white/95 px-2.5 py-0.5 text-sm font-semibold text-slate-600 ring-1 ring-slate-200/80">
                   题 6–9
                 </span>
               </div>
@@ -1032,7 +1032,7 @@ export function DataCollection() {
                   aria-hidden
                 />
                 <h3 className="text-sm font-bold text-gray-900">糖代谢相关（是 / 否）</h3>
-                <span className="ml-auto rounded-full bg-white/95 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600 ring-1 ring-slate-200/80">
+                <span className="ml-auto rounded-full bg-white/95 px-2.5 py-0.5 text-sm font-semibold text-slate-600 ring-1 ring-slate-200/80">
                   题 10–20
                 </span>
               </div>
@@ -1161,7 +1161,7 @@ export function DataCollection() {
                   <Activity className="h-5 w-5" aria-hidden />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">问卷模块</p>
+                  <p className="text-sm font-semibold uppercase tracking-[0.14em] text-gray-500">问卷模块</p>
                   <h2 className="mt-0.5 text-xl font-bold tracking-tight text-gray-900 sm:text-2xl">生活习惯</h2>
                   <p className="mt-2 max-w-xl text-sm leading-relaxed text-gray-600">
                     共 11 项：烟酒与中高强度运动、饮酒频率与久坐时间，以及 7 道 0～10 分自评。填写后保存，将写入本机并与账户同步（若已登录）。
@@ -1187,7 +1187,7 @@ export function DataCollection() {
                   aria-hidden
                 />
                 <h3 className="text-sm font-bold text-gray-900">烟酒与运动（是 / 否）</h3>
-                <span className="ml-auto rounded-full bg-white/95 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600 ring-1 ring-slate-200/80">
+                <span className="ml-auto rounded-full bg-white/95 px-2.5 py-0.5 text-sm font-semibold text-slate-600 ring-1 ring-slate-200/80">
                   题 1–2
                 </span>
               </div>
@@ -1214,7 +1214,7 @@ export function DataCollection() {
                   aria-hidden
                 />
                 <h3 className="text-sm font-bold text-gray-900">饮酒与久坐</h3>
-                <span className="ml-auto rounded-full bg-white/95 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600 ring-1 ring-slate-200/80">
+                <span className="ml-auto rounded-full bg-white/95 px-2.5 py-0.5 text-sm font-semibold text-slate-600 ring-1 ring-slate-200/80">
                   题 3 · 11
                 </span>
               </div>
@@ -1259,7 +1259,7 @@ export function DataCollection() {
                   aria-hidden
                 />
                 <h3 className="text-sm font-bold text-gray-900">自评量表（0～10 分）</h3>
-                <span className="ml-auto rounded-full bg-white/95 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600 ring-1 ring-slate-200/80">
+                <span className="ml-auto rounded-full bg-white/95 px-2.5 py-0.5 text-sm font-semibold text-slate-600 ring-1 ring-slate-200/80">
                   题 4–10
                 </span>
               </div>
@@ -1341,7 +1341,7 @@ export function DataCollection() {
                   <Heart className="h-5 w-5" aria-hidden />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">问卷模块</p>
+                  <p className="text-sm font-semibold uppercase tracking-[0.14em] text-gray-500">问卷模块</p>
                   <h2 className="mt-0.5 text-xl font-bold tracking-tight text-gray-900 sm:text-2xl">生理指标</h2>
                   <p className="mt-2 max-w-2xl text-sm leading-relaxed text-gray-600">
                     共 24 项，名称与单位与国内常见检验报告单一致，请对照化验单逐项填写；保存后将写入本机并与账户同步（若已登录）。也可使用下方「化验单图像识别」上传报告截图由豆包模型预填。
@@ -1433,7 +1433,7 @@ export function DataCollection() {
                   aria-hidden
                 />
                 <h3 className="text-sm font-bold text-gray-900">血压与糖代谢</h3>
-                <span className="ml-auto rounded-full bg-white/95 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600 ring-1 ring-slate-200/80">
+                <span className="ml-auto rounded-full bg-white/95 px-2.5 py-0.5 text-sm font-semibold text-slate-600 ring-1 ring-slate-200/80">
                   题 1–4
                 </span>
               </div>
@@ -1474,7 +1474,7 @@ export function DataCollection() {
                   aria-hidden
                 />
                 <h3 className="text-sm font-bold text-gray-900">血脂谱</h3>
-                <span className="ml-auto rounded-full bg-white/95 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600 ring-1 ring-slate-200/80">
+                <span className="ml-auto rounded-full bg-white/95 px-2.5 py-0.5 text-sm font-semibold text-slate-600 ring-1 ring-slate-200/80">
                   题 5–8
                 </span>
               </div>
@@ -1517,7 +1517,7 @@ export function DataCollection() {
                   aria-hidden
                 />
                 <h3 className="text-sm font-bold text-gray-900">肝、肾与相关酶学 / 电解质</h3>
-                <span className="ml-auto rounded-full bg-white/95 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600 ring-1 ring-slate-200/80">
+                <span className="ml-auto rounded-full bg-white/95 px-2.5 py-0.5 text-sm font-semibold text-slate-600 ring-1 ring-slate-200/80">
                   题 9–18
                 </span>
               </div>
@@ -1598,7 +1598,7 @@ export function DataCollection() {
                   aria-hidden
                 />
                 <h3 className="text-sm font-bold text-gray-900">血常规与尿酸</h3>
-                <span className="ml-auto rounded-full bg-white/95 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600 ring-1 ring-slate-200/80">
+                <span className="ml-auto rounded-full bg-white/95 px-2.5 py-0.5 text-sm font-semibold text-slate-600 ring-1 ring-slate-200/80">
                   题 19–24
                 </span>
               </div>
@@ -1888,7 +1888,7 @@ export function DataCollection() {
       <div className="overflow-hidden rounded-2xl border border-gray-200/90 bg-white p-5 shadow-sm ring-1 ring-gray-100/90 sm:p-6">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">下一步</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.14em] text-gray-500">下一步</p>
             <h3 className="mt-1 text-lg font-bold tracking-tight text-gray-900 sm:text-xl">进入风险评估分析</h3>
             <p className="mt-2 text-sm leading-relaxed text-gray-600">
               {canAnalyze ? '数据已就绪，可发起模型分析；也可继续完善各模块后再次分析。' : '请先在上方模块中填写并保存至少一项数据。'}
@@ -2082,13 +2082,13 @@ function ModuleCard({
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
           {done ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 ring-1 ring-emerald-200/80">
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-sm font-semibold text-emerald-800 ring-1 ring-emerald-200/80">
               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" aria-hidden />
               已保存
             </span>
           ) : null}
           {isDerived ? (
-            <span className="rounded-full bg-teal-50 px-2 py-0.5 text-[11px] font-semibold text-teal-800 ring-1 ring-teal-200/80">
+            <span className="rounded-full bg-teal-50 px-2 py-0.5 text-sm font-semibold text-teal-800 ring-1 ring-teal-200/80">
               自动
             </span>
           ) : null}

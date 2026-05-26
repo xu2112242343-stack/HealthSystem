@@ -318,7 +318,7 @@ function CoreFactorsVisualization({ factors }: { factors: KeyFactor[] }) {
             );
           })}
         </div>
-        <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1.5 text-[11px] text-gray-600">
+        <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1.5 text-sm text-gray-600">
           <span className="inline-flex items-center gap-1.5">
             <span className="h-2 w-2 shrink-0 bg-rose-500" aria-hidden />
             高影响
@@ -342,7 +342,7 @@ function CoreFactorsVisualization({ factors }: { factors: KeyFactor[] }) {
       >
         {showRadar ? (
           <div className="flex flex-col items-center lg:items-start">
-            <p className="mb-2 w-full text-center text-[11px] font-semibold text-gray-500 lg:text-left">
+            <p className="mb-2 w-full text-center text-sm font-semibold text-gray-500 lg:text-left">
               贡献轮廓
             </p>
             <svg
@@ -404,7 +404,7 @@ function CoreFactorsVisualization({ factors }: { factors: KeyFactor[] }) {
         <div className="min-w-0 space-y-3">
           <p
             className={cn(
-              'text-[11px] font-semibold text-gray-500',
+              'text-sm font-semibold text-gray-500',
               showRadar ? 'lg:pt-0' : 'pt-0',
             )}
           >
@@ -628,7 +628,7 @@ export function RiskAssessment() {
               <Sparkles className="h-3.5 w-3.5" />
               多模态 · MAFLD / T2DM / CVA
             </div>
-            <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+            <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
               风险评估
             </h1>
             <p className="text-sm leading-relaxed text-gray-600">
@@ -677,6 +677,7 @@ export function RiskAssessment() {
       <DiseaseRiskPropagationModule
         diseases={diseasesEffective}
         propagationScores={remoteRisk?.propagationScores}
+        propagationDetail={remoteRisk?.propagationDetail}
         selectedId={selectedId}
         onSelectDisease={setSelectedId}
         className="mb-6"
@@ -715,14 +716,14 @@ export function RiskAssessment() {
                     </div>
                     <span
                       className={cn(
-                        'shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold',
+                        'shrink-0 rounded-full px-2.5 py-0.5 text-sm font-semibold',
                         riskPill(d.risk),
                       )}
                     >
                       {d.riskLabel}
                     </span>
                   </div>
-                  <p className="mt-3 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+                  <p className="mt-3 text-sm font-semibold uppercase tracking-wider text-gray-500">
                     {d.shortName}
                   </p>
                   <h3 className="mt-0.5 text-base font-bold leading-snug text-gray-900">
@@ -731,8 +732,8 @@ export function RiskAssessment() {
                   <p className="mt-1 text-xs text-gray-500 line-clamp-2">{d.subtitle}</p>
                   <div className="mt-3">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-[11px] text-gray-500">信息完整度</span>
-                      <span className={cn('text-[11px] font-semibold', compStyle.text)}>
+                      <span className="text-sm text-gray-500">信息完整度</span>
+                      <span className={cn('text-sm font-semibold', compStyle.text)}>
                         {completeness}%
                       </span>
                     </div>
