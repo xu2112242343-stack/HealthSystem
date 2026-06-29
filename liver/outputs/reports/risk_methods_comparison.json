@@ -1,9 +1,0 @@
-{
-  "prob_method_distribution": {
-    "高风险": 161,
-    "低风险": 105,
-    "中风险": 60
-  },
-  "kmeans_high_risk_n": 161,
-  "note": "概率分层适用于全体；K-means 仅刻画预测高危人群的代谢/炎症特征亚型。"
-}

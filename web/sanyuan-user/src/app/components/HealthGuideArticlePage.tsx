@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+﻿import React, { useMemo } from 'react';
 import { ArrowLeft } from 'lucide-react';
 
 import type { HealthGuideArticle, HealthGuideImage } from '@/lib/api/healthGuides';
@@ -35,30 +35,49 @@ function resolveImageByFilename(
   );
 }
 
-/** 将一段纯文本拆成段落：优先空行/换行；否则按中文句末标点切分 */
+/** 将一段纯文本拆成段落：优先空行，其次单换行，纯文本按句号合并为合理长度 */
 function textToParagraphs(text: string): string[] {
   const raw = text.replace(/\r\n/g, '\n').trim();
   if (!raw) return [];
 
-  if (/\n/.test(raw)) {
-    const blocks = raw.split(/\n\s*\n+/);
-    const out: string[] = [];
-    for (const block of blocks) {
-      const lines = block
-        .split('\n')
-        .map((s) => s.trim())
-        .filter(Boolean);
-      if (lines.length) out.push(...lines);
-    }
-    return out.length ? out : [raw];
+  // 1. 有显式空行（双换行）-> 按段落拆分，段内换行合并
+  if (/\n\s*\n/.test(raw)) {
+    return raw
+      .split(/\n\s*\n+/)
+      .map((block) =>
+        block
+          .split('\n')
+          .map((s) => s.trim())
+          .filter(Boolean)
+          .join('\n'),
+      )
+      .filter(Boolean);
   }
 
-  const bySentence = raw
+  // 2. 有单换行但无空行 -> 每行作为一个段落
+  if (/\n/.test(raw)) {
+    return raw.split('\n').map((s) => s.trim()).filter(Boolean);
+  }
+
+  // 3. 纯文本无换行 -> 按句末标点拆分后合并为 120~180 字一段
+  const sentences = raw
     .split(/(?<=[。！？；])\s*/)
     .map((s) => s.trim())
     .filter(Boolean);
-  if (bySentence.length >= 2) return bySentence;
-  return [raw];
+  if (sentences.length <= 1) return [raw];
+
+  const paras: string[] = [];
+  let cur = sentences[0];
+  for (let i = 1; i < sentences.length; i++) {
+    if (cur.length >= 150) {
+      paras.push(cur);
+      cur = sentences[i];
+    } else {
+      cur += sentences[i];
+    }
+  }
+  if (cur) paras.push(cur);
+  return paras;
 }
 
 function parseArticleBody(content: string, images: HealthGuideImage[]): {
@@ -94,67 +113,75 @@ function parseArticleBody(content: string, images: HealthGuideImage[]): {
 }
 
 function ArticleBodyFlow({ article }: { article: HealthGuideArticle }) {
-  const { segments, trailingImages } = useMemo(
-    () => parseArticleBody(article.content || '', article.images || []),
-    [article.content, article.images],
-  );
+ const { segments, trailingImages } = useMemo(
+   () => parseArticleBody(article.content || '', article.images || []),
+   [article.content, article.images],
+ );
 
-  const hasAny =
-    segments.some((s) => s.kind === 'img') ||
-    segments.some((s) => s.kind === 'text' && textToParagraphs(s.text).length > 0) ||
-    trailingImages.length > 0;
+ const hasAny =
+   segments.some((s) => s.kind === 'img') ||
+   segments.some((s) => s.kind === 'text' && textToParagraphs(s.text).length > 0) ||
+   trailingImages.length > 0;
 
-  if (!hasAny) return <p className="text-gray-500">暂无正文内容</p>;
+ if (!hasAny) return <p className="text-gray-500">暂无正文内容</p>;
+
+  // 将末尾配图均匀插入文本段落之间，避免全部堆在底部
+  const flowItems = useMemo(() => {
+    if (trailingImages.length === 0 && segments.length <= 1) {
+      return segments;
+    }
+    const items: BodySegment[] = [];
+    for (const seg of segments) {
+      if (seg.kind === 'img') {
+        items.push(seg);
+      } else {
+        const paras = textToParagraphs(seg.text);
+        for (const p of paras) {
+          items.push({ kind: 'text', text: p });
+        }
+      }
+    }
+    if (trailingImages.length > 0) {
+      const textIndices = items
+        .map((s, i) => (s.kind === 'text' ? i : -1))
+        .filter((i) => i >= 0);
+      if (textIndices.length > 0) {
+        const positions = trailingImages.map((_, k) =>
+          Math.round((k + 1) * textIndices.length / (trailingImages.length + 1)),
+        );
+        for (let k = trailingImages.length - 1; k >= 0; k--) {
+          const insertAt = textIndices[Math.min(positions[k], textIndices.length - 1)];
+          items.splice(insertAt + 1, 0, { kind: 'img', img: trailingImages[k] });
+        }
+      }
+    }
+    return items;
+  }, [segments, trailingImages]);
 
   return (
     <div className="space-y-6">
-      {segments.map((seg, i) => {
-        if (seg.kind === 'img') {
+      {flowItems.map((item, i) => {
+        if (item.kind === 'img') {
           return (
-            <figure key={`inline-${seg.img.id}-${i}`} className="overflow-hidden rounded-xl border border-gray-100 bg-gray-50">
+            <figure key={`flow-${item.img.id}-${i}`} className="overflow-hidden rounded-xl border border-gray-100 bg-gray-50">
               <img
-                src={seg.img.imageUrl}
-                alt={seg.img.desc || article.title}
+                src={item.img.imageUrl}
+                alt={item.img.desc || article.title}
                 className="max-h-[min(360px,50vh)] w-full object-contain"
                 loading="lazy"
               />
-              {seg.img.desc ? (
-                <figcaption className="px-3 py-2 text-center text-xs text-gray-500">{seg.img.desc}</figcaption>
+              {item.img.desc ? (
+                <figcaption className="px-3 py-2 text-center text-xs text-gray-500">{item.img.desc}</figcaption>
               ) : null}
             </figure>
           );
         }
-        const paras = textToParagraphs(seg.text);
-        if (!paras.length) return null;
         return (
-          <div key={`text-${i}`} className="space-y-3">
-            {paras.map((p, j) => (
-              <p key={j} className="text-justify text-base leading-7 text-gray-800">
-                {p}
-              </p>
-            ))}
-          </div>
+          <p key={`flow-text-${i}`} className="text-justify text-base leading-7 text-gray-800" style={{ textIndent: '2em', whiteSpace: 'pre-wrap' }}>
+            {item.text}
+          </p>
         );
       })}
-
-      {trailingImages.length > 0 ? (
-        <div className="space-y-4 border-t border-gray-100 pt-6">
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-400">其余配图</h4>
-          {trailingImages.map((img) => (
-            <figure key={`trail-${img.id}`} className="overflow-hidden rounded-xl border border-gray-100 bg-gray-50">
-              <img
-                src={img.imageUrl}
-                alt={img.desc || article.title}
-                className="max-h-[min(360px,50vh)] w-full object-contain"
-                loading="lazy"
-              />
-              {img.desc ? (
-                <figcaption className="px-3 py-2 text-center text-xs text-gray-500">{img.desc}</figcaption>
-              ) : null}
-            </figure>
-          ))}
-        </div>
-      ) : null}
     </div>
   );
 }

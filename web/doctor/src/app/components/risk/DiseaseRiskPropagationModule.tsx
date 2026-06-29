@@ -188,26 +188,17 @@ function bezierControlsForEdge(
   };
 }
 
-/** 关联强度指数：<30 绿，30–60 黄，>60 红 */
-function strengthStyle(impact: number) {
-  if (impact < 30) {
-    return {
-      stroke: '#059669',
-      glow: '#34d399',
-      labelClass: 'text-emerald-800',
-    };
-  }
-  if (impact <= 60) {
-    return {
-      stroke: '#b45309',
-      glow: '#fbbf24',
-      labelClass: 'text-amber-900',
-    };
-  }
+/** 传播箭头默认绿色；悬停时高亮为黄色（不再按关联强度分色） */
+const PROP_EDGE_COLOR = '#10b981';
+const PROP_EDGE_COLOR_HOVER = '#eab308';
+const PROP_EDGE_GLOW = '#34d399';
+const PROP_EDGE_GLOW_HOVER = '#fde047';
+
+function edgeArrowStyle(hovered = false) {
   return {
-    stroke: '#be123c',
-    glow: '#fb7185',
-    labelClass: 'text-rose-800',
+    stroke: hovered ? PROP_EDGE_COLOR_HOVER : PROP_EDGE_COLOR,
+    glow: hovered ? PROP_EDGE_GLOW_HOVER : PROP_EDGE_GLOW,
+    labelClass: hovered ? 'text-yellow-600' : 'text-emerald-800',
   };
 }
 
@@ -501,7 +492,8 @@ export function DiseaseRiskPropagationModule({
             >
               <defs>
                 {triEdges.map((spec) => {
-                  const st = strengthStyle(spec.e.impact);
+                  const ho = hoverEdgeKey === spec.e.key;
+                  const st = edgeArrowStyle(ho);
                   const { cubic } = spec;
                   return (
                     <linearGradient
@@ -522,8 +514,8 @@ export function DiseaseRiskPropagationModule({
               </defs>
               {triEdges.map((spec) => {
                 const e = spec.e;
-                const v = strengthStyle(e.impact);
                 const ho = hoverEdgeKey === e.key;
+                const v = edgeArrowStyle(ho);
                 const gradId = `url(#${arrowMarkerId}-grad-${e.key})`;
                 const sw = flowWidth(e.impact);
                 const swActive = ho ? sw + 2.5 : sw;
@@ -596,7 +588,8 @@ export function DiseaseRiskPropagationModule({
             >
               {triEdges.map((spec) => {
                 const { e, cubic } = spec;
-                const st = strengthStyle(e.impact);
+                const ho = hoverEdgeKey === e.key;
+                const st = edgeArrowStyle(ho);
                 const mid = cubicPoint(cubic, e.key === 'liver-stroke' ? 0.46 : 0.5);
                 const lift = e.key === 'liver-stroke' ? '-135%' : '-118%';
                 return (
@@ -615,7 +608,7 @@ export function DiseaseRiskPropagationModule({
                         st.labelClass,
                       )}
                     >
-                      {`风险↑${e.impact}%`}
+                      {`${e.impact}%`}
                     </span>
                     {e.key === 'liver-stroke' ? (
                       <span className="text-xs font-medium leading-none text-slate-500">
@@ -657,11 +650,11 @@ export function DiseaseRiskPropagationModule({
             </div>
             {hoverEdgeKey && edgeTipPos ? (
               <div
-                className="pointer-events-none absolute z-[35] w-[min(18rem,calc(100%-1rem))] rounded-xl border border-emerald-200/80 bg-white/98 px-3 py-2.5 text-left text-xs leading-relaxed text-slate-700 shadow-lg ring-1 ring-slate-200/70 backdrop-blur-[2px]"
+                className="pointer-events-none absolute z-[35] w-[min(18rem,calc(100%-1rem))] rounded-xl border border-yellow-200/80 bg-white/98 px-3 py-2.5 text-left text-xs leading-relaxed text-slate-700 shadow-lg ring-1 ring-slate-200/70 backdrop-blur-[2px]"
                 style={{ left: edgeTipPos.x, top: edgeTipPos.y }}
                 role="tooltip"
               >
-                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-emerald-800/90">
+                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-yellow-700/90">
                   {hoverEdgeKey === 'liver-diabetes'
                     ? '肝病 → 糖尿病'
                     : hoverEdgeKey === 'diabetes-stroke'

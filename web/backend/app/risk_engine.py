@@ -169,7 +169,7 @@ def propagation_scores_fusion(
     - 有因子：blend = 0.5·dis_core + 0.5·cos_AB；无因子：blend = dis_core
     - impact = round(100·blend) 限制在 [0, 98]
 
-    返回顺序：**[糖尿病→脂肪肝, 脂肪肝→脑卒中, 糖尿病→脑卒中]**。
+    返回顺序：**[脂肪肝→糖尿病, 脂肪肝→脑卒中, 糖尿病→脑卒中]**。
     参数 row 保留兼容，当前不参与计算。
     """
     del row  # 原版不使用问卷行，保留签名供 predict_triple 调用
@@ -179,7 +179,7 @@ def propagation_scores_fusion(
     g3 = _triple_geometric_mean(p_liver, p_dm, p_stroke)
 
     edges: list[tuple[str, float, float, dict[str, float], dict[str, float]]] = [
-        ("diabetes-liver", p_dm, p_liver, wd, wl),
+        ("liver-diabetes", p_liver, p_dm, wl, wd),
         ("liver-stroke", p_liver, p_stroke, wl, ws),
         ("diabetes-stroke", p_dm, p_stroke, wd, ws),
     ]

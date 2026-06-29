@@ -28,27 +28,28 @@ export type StrokeImageStatus = {
 
 export type PropagationEdgeDetail = {
   impact: number;
-  association: number;
-  causal: number;
+  blend?: number;
+  association?: number;
   associationScore: number;
-  causalScore: number;
   diagnosis: { code: string; label: string };
   decomposition?: {
     pairGeo?: number;
-    direct?: number;
-    indirect?: number;
-    confounding?: number;
-    confoundCosine?: number;
-    mechanismCosine?: number;
+    g3?: number;
+    disCore?: number;
+    cosAb?: number;
+    densityPair?: number;
+    densityG3?: number;
+    wPair?: number;
+    wG3?: number;
   };
 };
 
 export type RiskPredictResponse = {
-  /** 三病传播分项分值（%），顺序为：[糖尿病→脂肪肝, 脂肪肝→脑卒中, 糖尿病→脑卒中] */
+  /** 三病传播分项分值（%），顺序为：[脂肪肝→糖尿病, 脂肪肝→脑卒中, 糖尿病→脑卒中] */
   propagationScores: readonly [number, number, number];
-  /** 逐边关联/因果双层解释，键为 diabetes-liver | liver-stroke | diabetes-stroke */
+  /** 逐边关联/因果双层解释，键为 liver-diabetes | liver-stroke | diabetes-stroke */
   propagationDetail?: Partial<
-    Record<'diabetes-liver' | 'liver-stroke' | 'diabetes-stroke', PropagationEdgeDetail>
+    Record<'liver-diabetes' | 'liver-stroke' | 'diabetes-stroke', PropagationEdgeDetail>
   >;
   compositeIndex: number;
   diseases: RiskPredictDisease[];

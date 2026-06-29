@@ -1,7 +1,0 @@
-split,class_name,n_images,n_patients
-test,NAFLD,60,6
-test,Non-NAFLD,30,3
-train,NAFLD,260,26
-train,Non-NAFLD,110,11
-val,NAFLD,60,6
-val,Non-NAFLD,30,3

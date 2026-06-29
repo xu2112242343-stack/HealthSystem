@@ -29,7 +29,7 @@ type EdgeRow = {
   clinicalNote: string;
   /** 图示旁短文案：言简意赅，与参考模板风格一致 */
   summaryZh: string;
-  /** 关联-因果双层解释（后端 propagationDetail） */
+  /** 数据密度权重等解释（后端 propagationDetail） */
   dualLayer?: PropagationEdgeDetail;
 };
 
@@ -73,19 +73,97 @@ const PROP_TRIANGLE_CIRCLE = {
   vbH: 500,
   cx: 340,
   cy: 238,
+  /** 节点中心所在参考圆半径（与虚线圆一致） */
   R: 132,
-  /** 0°=+x 右，90°=+y 下 */
-  ang: { diabetes: -30, liver: 210, stroke: 90 } as const,
+  /** 0°=+x 右，90°=+y 下；左脂肪肝、右糖尿病、下脑卒中 */
+  ang: { liver: 210, diabetes: -30, stroke: 90 } as const,
   trimDegHit: 6,
   trimDegVis: 22,
   trimDegVisStrokeEnd: 10,
 } as const;
+
+/** 7rem 圆节点在设计宽 680px 下约 56 viewBox 半径；含边框/ring 可视外缘约 57 */
+const PROP_TRIANGLE_NODE_R_VB = 57;
+/** 箭头 marker 尖端至附着点距离（与 marker refX 一致） */
+const PROP_TRIANGLE_MARKER_TIP_LEN = 18;
+
+function triangleOrbitR(): number {
+  return PROP_TRIANGLE_CIRCLE.R;
+}
+
+/** 弧线沿虚线参考圆绘制，首尾在节点圆与参考圆相切点 */
+function triangleArcR(): number {
+  return triangleOrbitR();
+}
+
+/** 节点圆与参考圆相交时的角向半宽（度），路径端点落在此角上即贴节点外缘 */
+function triangleNodeContactDeg(arcR: number, nodeR: number = PROP_TRIANGLE_NODE_R_VB): number {
+  const ratio = Math.min(1, nodeR / (2 * arcR));
+  return (2 * Math.asin(ratio) * 180) / Math.PI;
+}
+
+function triangleOrbitBoundaryDeg(
+  nodeOrbitDeg: number,
+  towardIncreasingAngle: boolean,
+  arcR: number,
+): number {
+  const contact = triangleNodeContactDeg(arcR);
+  return towardIncreasingAngle ? nodeOrbitDeg + contact : nodeOrbitDeg - contact;
+}
 
 function triangleDegXY(R: number, deg: number) {
   const t = (deg * Math.PI) / 180;
   return {
     x: PROP_TRIANGLE_CIRCLE.cx + R * Math.cos(t),
     y: PROP_TRIANGLE_CIRCLE.cy + R * Math.sin(t),
+  };
+}
+
+/** clipPath：全画布减去三枚节点圆，裁掉线宽/箭头穿入圆内的部分 */
+function triangleNodesClipPathD(
+  nodes: { liver: { x: number; y: number }; diabetes: { x: number; y: number }; stroke: { x: number; y: number } },
+  vbW: number,
+  vbH: number,
+  nodeR: number,
+): string {
+  const hole = (x: number, y: number) =>
+    `M ${x + nodeR},${y} a ${nodeR},${nodeR} 0 1,0 ${-2 * nodeR},0 a ${nodeR},${nodeR} 0 1,0 ${2 * nodeR},0 Z`;
+  return [
+    `M 0,0 H ${vbW} V ${vbH} H 0 Z`,
+    hole(nodes.liver.x, nodes.liver.y),
+    hole(nodes.diabetes.x, nodes.diabetes.y),
+    hole(nodes.stroke.x, nodes.stroke.y),
+  ].join(' ');
+}
+
+/** 三条有向边的起止角（clockwise=true 为角度递减方向） */
+function triangleEdgeArcAngles(
+  edgeKey: 'liver-diabetes' | 'liver-stroke' | 'diabetes-stroke',
+  arcR: number,
+): { startDeg: number; endDeg: number; clockwise: boolean; markerAtEnd: boolean } {
+  const { ang } = PROP_TRIANGLE_CIRCLE;
+  if (edgeKey === 'liver-diabetes') {
+    /** 顶弧 CCW（角度增大）：脂肪肝 +contact 出、糖尿病 -contact 入，端点贴外缘 */
+    return {
+      startDeg: triangleOrbitBoundaryDeg(ang.liver, true, arcR),
+      endDeg: triangleOrbitBoundaryDeg(ang.diabetes, false, arcR),
+      clockwise: false,
+      markerAtEnd: true,
+    };
+  }
+  if (edgeKey === 'liver-stroke') {
+    return {
+      startDeg: triangleOrbitBoundaryDeg(ang.liver, false, arcR),
+      endDeg: triangleOrbitBoundaryDeg(ang.stroke, true, arcR),
+      clockwise: true,
+      markerAtEnd: true,
+    };
+  }
+  return {
+    startDeg: triangleOrbitBoundaryDeg(ang.diabetes, true, arcR),
+    endDeg: triangleOrbitBoundaryDeg(ang.stroke, false, arcR),
+    clockwise: false,
+    markerAtEnd: true,
   };
 }
 
@@ -141,46 +219,31 @@ function shortenBetween(
   };
 }
 
-/** 关联强度指数：<30 绿，30–60 黄，>60 红 */
-function strengthStyle(impact: number) {
-  if (impact < 30) {
-    return {
-      stroke: '#10b981',
-      strokeWidth: 2.5,
-      labelClass: 'text-emerald-800',
-    };
-  }
-  if (impact <= 60) {
-    return {
-      stroke: '#d97706',
-      strokeWidth: 3.5,
-      labelClass: 'text-amber-900',
-    };
-  }
+/** 传播箭头默认绿色；悬停时高亮为黄色（不再按关联强度分色） */
+const PROP_EDGE_COLOR = '#10b981';
+const PROP_EDGE_COLOR_HOVER = '#eab308';
+
+function edgeArrowStyle(hovered = false) {
   return {
-    stroke: '#e11d48',
-    strokeWidth: 5,
-    labelClass: 'text-rose-800',
+    stroke: hovered ? PROP_EDGE_COLOR_HOVER : PROP_EDGE_COLOR,
+    strokeWidth: PROPAGATION_EDGE_STROKE,
+    labelClass: hovered ? 'text-yellow-600' : 'text-emerald-800',
   };
 }
 
 /** 深色可视化下的边标签色 */
-function strengthLabelOnDark(impact: number) {
-  if (impact < 30) return 'text-emerald-300';
-  if (impact <= 60) return 'text-amber-300';
-  return 'text-rose-300';
+function edgeLabelOnDark(hovered: boolean) {
+  return hovered ? 'text-yellow-300' : 'text-emerald-300';
 }
 
 function FlowChannel({
   edgeKey,
-  impact,
   hovered,
 }: {
   edgeKey: string;
-  impact: number;
   hovered: boolean;
 }) {
-  const v = strengthStyle(impact);
+  const v = edgeArrowStyle(hovered);
   const sid = `pf_${edgeKey.replace(/[^a-zA-Z0-9]/g, '_')}`;
   const sw = PROPAGATION_EDGE_STROKE;
   return (
@@ -255,14 +318,6 @@ function PropagationArcCallout({
       <div className="mb-1.5 h-0.5 w-8 rounded-full" style={{ backgroundColor: accentStroke }} aria-hidden />
       <p className="text-sm font-bold leading-tight text-gray-900">{edgeLabel}</p>
       <p className="mt-1.5 text-sm leading-relaxed text-gray-600">{text}</p>
-      {dualLayer ? (
-        <>
-          <p className="mt-2 text-xs font-medium text-gray-500">
-            关联层 {dualLayer.associationScore}% · 因果层 {dualLayer.causalScore}% · 融合 {dualLayer.impact}%
-          </p>
-          <p className="mt-1 text-xs leading-relaxed text-teal-800">{dualLayer.diagnosis.label}</p>
-        </>
-      ) : null}
     </div>
   );
 }
@@ -305,10 +360,10 @@ function TriangleFlowNode({
   );
 }
 
-/** 完整页：三等分圆上节点 + 同圆三段短弧（糖→肝、肝→卒、糖→卒直接） */
+/** 完整页：三等分圆上节点 + 同圆三段短弧（肝→糖、肝→卒、糖→卒直接） */
 function PropagationDiseaseTriangleFlow({
   uid,
-  eDmLiver,
+  eLiverDm,
   eLiverStroke,
   eDmStroke,
   hoverEdgeKey,
@@ -316,29 +371,64 @@ function PropagationDiseaseTriangleFlow({
   onSelectTarget,
 }: {
   uid: string;
-  eDmLiver: EdgeRow;
+  eLiverDm: EdgeRow;
   eLiverStroke: EdgeRow;
   eDmStroke: EdgeRow;
   hoverEdgeKey: string | null;
   onHoverEdge: (key: string | null) => void;
   onSelectTarget: (id: PropagationDiseaseId) => void;
 }) {
-  const dm = eDmLiver.from;
-  const liver = eDmLiver.to;
+  const liver = eLiverDm.from;
+  const dm = eLiverDm.to;
   const stroke = eLiverStroke.to;
 
-  const { vbW, vbH, cx, cy, R, ang, trimDegHit, trimDegVis, trimDegVisStrokeEnd } = PROP_TRIANGLE_CIRCLE;
+  const { vbW, vbH, cx, cy, ang, trimDegHit } = PROP_TRIANGLE_CIRCLE;
+  const orbitR = triangleOrbitR();
+  const arcR = triangleArcR();
 
   const ringLayout = useMemo(() => {
-    const th = trimDegHit;
-    const tv = trimDegVis;
-    const te = trimDegVisStrokeEnd;
-    const pathDmLiverVis = svgCircularArc(R, ang.diabetes - tv, ang.liver + tv, true);
-    const pathLiverStrokeVis = svgCircularArc(R, ang.liver - tv, ang.stroke + tv + te, true);
-    const pathDmStrokeVis = svgCircularArc(R, ang.diabetes + tv, ang.stroke - tv - te, false);
-    const pathDmLiverHit = svgCircularArc(R, ang.diabetes - th, ang.liver + th, true);
-    const pathLiverStrokeHit = svgCircularArc(R, ang.liver - th, ang.stroke + th, true);
-    const pathDmStrokeHit = svgCircularArc(R, ang.diabetes + th, ang.stroke - th, false);
+    const arcLiverDm = triangleEdgeArcAngles('liver-diabetes', arcR);
+    const arcLiverStroke = triangleEdgeArcAngles('liver-stroke', arcR);
+    const arcDmStroke = triangleEdgeArcAngles('diabetes-stroke', arcR);
+
+    const hitPad = Math.max(4, trimDegHit);
+    const hitLiverDm = {
+      startDeg: arcLiverDm.startDeg + (arcLiverDm.clockwise ? hitPad : -hitPad),
+      endDeg: arcLiverDm.endDeg - (arcLiverDm.clockwise ? hitPad : -hitPad),
+      clockwise: arcLiverDm.clockwise,
+    };
+    const hitLiverStroke = {
+      startDeg: arcLiverStroke.startDeg + (arcLiverStroke.clockwise ? hitPad : -hitPad),
+      endDeg: arcLiverStroke.endDeg - (arcLiverStroke.clockwise ? hitPad : -hitPad),
+      clockwise: arcLiverStroke.clockwise,
+    };
+    const hitDmStroke = {
+      startDeg: arcDmStroke.startDeg + (arcDmStroke.clockwise ? -hitPad : hitPad),
+      endDeg: arcDmStroke.endDeg - (arcDmStroke.clockwise ? -hitPad : hitPad),
+      clockwise: arcDmStroke.clockwise,
+    };
+
+    const pathLiverDmVis = svgCircularArc(arcR, arcLiverDm.startDeg, arcLiverDm.endDeg, arcLiverDm.clockwise);
+    const pathLiverStrokeVis = svgCircularArc(
+      arcR,
+      arcLiverStroke.startDeg,
+      arcLiverStroke.endDeg,
+      arcLiverStroke.clockwise,
+    );
+    const pathDmStrokeVis = svgCircularArc(arcR, arcDmStroke.startDeg, arcDmStroke.endDeg, arcDmStroke.clockwise);
+    const pathLiverDmHit = svgCircularArc(arcR, hitLiverDm.startDeg, hitLiverDm.endDeg, hitLiverDm.clockwise);
+    const pathLiverStrokeHit = svgCircularArc(
+      arcR,
+      hitLiverStroke.startDeg,
+      hitLiverStroke.endDeg,
+      hitLiverStroke.clockwise,
+    );
+    const pathDmStrokeHit = svgCircularArc(arcR, hitDmStroke.startDeg, hitDmStroke.endDeg, hitDmStroke.clockwise);
+
+    function arcCenter(startDeg: number, endDeg: number, clockwise: boolean) {
+      const mid = arcInterpDeg(startDeg, endDeg, clockwise, 0.5);
+      return triangleDegXY(arcR, mid);
+    }
 
     function arcScoreLabel(
       e: EdgeRow,
@@ -349,7 +439,7 @@ function PropagationDiseaseTriangleFlow({
       layoutCy: number,
     ) {
       const mid = arcInterpDeg(startDeg, endDeg, clockwise, 0.5);
-      let { x, y } = triangleDegXY(R, mid);
+      let { x, y } = triangleDegXY(arcR, mid);
       const rdx = x - layoutCx;
       const rdy = y - layoutCy;
       const rlen = Math.hypot(rdx, rdy) || 1;
@@ -362,7 +452,7 @@ function PropagationDiseaseTriangleFlow({
     /** 说明框锚在弧外侧、贴近弧线，三条边用同一套偏移规则 */
     function edgeNoteAnchor(e: EdgeRow, startDeg: number, endDeg: number, clockwise: boolean, layoutCx: number, layoutCy: number) {
       const mid = arcInterpDeg(startDeg, endDeg, clockwise, 0.48);
-      let { x, y } = triangleDegXY(R, mid);
+      let { x, y } = triangleDegXY(arcR, mid);
       const rdx = x - layoutCx;
       const rdy = y - layoutCy;
       const rlen = Math.hypot(rdx, rdy) || 1;
@@ -371,7 +461,7 @@ function PropagationDiseaseTriangleFlow({
       y += (rdy / rlen) * outward;
 
       let translateClass = '-translate-x-1/2 -translate-y-1/2';
-      if (e.key === 'diabetes-liver') {
+      if (e.key === 'liver-diabetes') {
         /** 顶边说明框整体下移，避免 -translate-y-full 顶出画布被裁切 */
         translateClass = '-translate-x-1/2 -translate-y-full';
         y += 36;
@@ -396,45 +486,61 @@ function PropagationDiseaseTriangleFlow({
     }
 
     const scoreLabels = [
-      arcScoreLabel(eDmLiver, ang.diabetes - tv, ang.liver + tv, true, cx, cy),
-      arcScoreLabel(eLiverStroke, ang.liver - tv, ang.stroke + tv + te, true, cx, cy),
-      arcScoreLabel(eDmStroke, ang.diabetes + tv, ang.stroke - tv - te, false, cx, cy),
+      arcScoreLabel(eLiverDm, arcLiverDm.startDeg, arcLiverDm.endDeg, arcLiverDm.clockwise, cx, cy),
+      arcScoreLabel(
+        eLiverStroke,
+        arcLiverStroke.startDeg,
+        arcLiverStroke.endDeg,
+        arcLiverStroke.clockwise,
+        cx,
+        cy,
+      ),
+      arcScoreLabel(eDmStroke, arcDmStroke.startDeg, arcDmStroke.endDeg, arcDmStroke.clockwise, cx, cy),
     ] as const;
 
     const edgeNotes = [
-      edgeNoteAnchor(eDmLiver, ang.diabetes - tv, ang.liver + tv, true, cx, cy),
-      edgeNoteAnchor(eLiverStroke, ang.liver - tv, ang.stroke + tv + te, true, cx, cy),
-      edgeNoteAnchor(eDmStroke, ang.diabetes + tv, ang.stroke - tv - te, false, cx, cy),
+      edgeNoteAnchor(eLiverDm, arcLiverDm.startDeg, arcLiverDm.endDeg, arcLiverDm.clockwise, cx, cy),
+      edgeNoteAnchor(
+        eLiverStroke,
+        arcLiverStroke.startDeg,
+        arcLiverStroke.endDeg,
+        arcLiverStroke.clockwise,
+        cx,
+        cy,
+      ),
+      edgeNoteAnchor(eDmStroke, arcDmStroke.startDeg, arcDmStroke.endDeg, arcDmStroke.clockwise, cx, cy),
     ] as const;
 
     return {
       paths: [
-        { e: eDmLiver, dVis: pathDmLiverVis, dHit: pathDmLiverHit },
-        { e: eLiverStroke, dVis: pathLiverStrokeVis, dHit: pathLiverStrokeHit },
-        { e: eDmStroke, dVis: pathDmStrokeVis, dHit: pathDmStrokeHit },
+        {
+          e: eLiverDm,
+          dVis: pathLiverDmVis,
+          dHit: pathLiverDmHit,
+          center: arcCenter(arcLiverDm.startDeg, arcLiverDm.endDeg, arcLiverDm.clockwise),
+        },
+        {
+          e: eLiverStroke,
+          dVis: pathLiverStrokeVis,
+          dHit: pathLiverStrokeHit,
+          center: arcCenter(arcLiverStroke.startDeg, arcLiverStroke.endDeg, arcLiverStroke.clockwise),
+        },
+        {
+          e: eDmStroke,
+          dVis: pathDmStrokeVis,
+          dHit: pathDmStrokeHit,
+          center: arcCenter(arcDmStroke.startDeg, arcDmStroke.endDeg, arcDmStroke.clockwise),
+        },
       ] as const,
       scoreLabels,
       edgeNotes,
       nodes: {
-        diabetes: triangleDegXY(R, ang.diabetes),
-        liver: triangleDegXY(R, ang.liver),
-        stroke: triangleDegXY(R, ang.stroke),
+        diabetes: triangleDegXY(orbitR, ang.diabetes),
+        liver: triangleDegXY(orbitR, ang.liver),
+        stroke: triangleDegXY(orbitR, ang.stroke),
       },
     };
-  }, [
-    R,
-    cx,
-    cy,
-    ang.diabetes,
-    ang.liver,
-    ang.stroke,
-    trimDegHit,
-    trimDegVis,
-    trimDegVisStrokeEnd,
-    eDmLiver,
-    eLiverStroke,
-    eDmStroke,
-  ]);
+  }, [arcR, cx, cy, ang.diabetes, ang.liver, ang.stroke, trimDegHit, eLiverDm, eLiverStroke, eDmStroke, orbitR]);
 
   const markerSuffix = (k: string) => k.replace(/[^a-zA-Z0-9]/g, '_');
 
@@ -454,7 +560,7 @@ function PropagationDiseaseTriangleFlow({
         preserveAspectRatio="xMidYMid meet"
         aria-hidden
       >
-        <circle cx={cx} cy={cy} r={R} fill="none" stroke="rgba(148,163,184,0.2)" strokeWidth="1" strokeDasharray="5 8" />
+        <circle cx={cx} cy={cy} r={orbitR} fill="none" stroke="rgba(148,163,184,0.2)" strokeWidth="1" strokeDasharray="5 8" />
         {ringLayout.paths.map(({ e, dHit }) => (
           <path
             key={`hit-${e.key}`}
@@ -498,59 +604,130 @@ function PropagationDiseaseTriangleFlow({
         viewBox={`0 0 ${vbW} ${vbH}`}
         preserveAspectRatio="xMidYMid meet"
         role="img"
-        aria-label="三病传播关系：三边为同一外接圆上的圆弧，依次为糖尿病至脂肪肝、脂肪肝至脑卒中、糖尿病至脑卒中直接路径"
+        aria-label="三病传播关系：三边为同一外接圆上的圆弧，依次为脂肪肝至糖尿病、脂肪肝至脑卒中、糖尿病至脑卒中直接路径"
       >
         <defs>
+          <clipPath id={`${uid}_tri_clip`} clipPathUnits="userSpaceOnUse">
+            <path fillRule="evenodd" d={triangleNodesClipPathD(ringLayout.nodes, vbW, vbH, PROP_TRIANGLE_NODE_R_VB)} />
+          </clipPath>
           {ringLayout.paths.map(({ e }) => {
-            const st = strengthStyle(e.impact);
+            const ho = hoverEdgeKey === e.key;
+            const st = edgeArrowStyle(ho);
+            const mk = markerSuffix(e.key);
             return (
-              <marker
-                key={e.key}
-                id={`${uid}_tri_${markerSuffix(e.key)}`}
-                markerUnits="userSpaceOnUse"
-                markerWidth="24"
-                markerHeight="24"
-                refX="20"
-                refY="12"
-                orient="auto"
-                overflow="visible"
-              >
-                <path
-                  d="M0,2 L0,22 L20,12 Z"
-                  fill={st.stroke}
-                  stroke={st.stroke}
-                  strokeWidth={0.35}
-                  strokeLinejoin="round"
-                />
-              </marker>
+              <React.Fragment key={e.key}>
+                <filter
+                  id={`${uid}_tri_glow_${mk}`}
+                  x="-40%"
+                  y="-40%"
+                  width="180%"
+                  height="180%"
+                >
+                  <feDropShadow dx="0" dy="1" stdDeviation={ho ? 5 : 2} floodColor={st.stroke} floodOpacity={0.5} />
+                </filter>
+                <marker
+                  id={`${uid}_tri_${mk}`}
+                  markerUnits="userSpaceOnUse"
+                  markerWidth={ho ? 28 : 24}
+                  markerHeight={ho ? 28 : 24}
+                  refX={String(PROP_TRIANGLE_MARKER_TIP_LEN)}
+                  refY="12"
+                  orient="auto"
+                  overflow="visible"
+                >
+                  <path
+                    d="M0,3 L0,21 L18,12 Z"
+                    fill={st.stroke}
+                    stroke="#ffffff"
+                    strokeWidth={ho ? 1.2 : 0.35}
+                    strokeLinejoin="round"
+                  />
+                </marker>
+              </React.Fragment>
             );
           })}
         </defs>
-        {ringLayout.paths.map(({ e, dVis }) => {
-          const v = strengthStyle(e.impact);
+        <g clipPath={`url(#${uid}_tri_clip)`}>
+        {ringLayout.paths.map(({ e, dVis, center }) => {
           const ho = hoverEdgeKey === e.key;
+          const v = edgeArrowStyle(ho);
+          const baseSw = PROP_TRIANGLE_EDGE_STROKE;
+          const activeSw = baseSw + (ho ? 3 : 0);
+          const outerBorderSw = activeSw + (ho ? 7 : 0);
+          const scale = ho ? 1.04 : 1;
+          const { x: pivotX, y: pivotY } = center;
+          const edgeTransform =
+            ho ? `translate(${pivotX} ${pivotY}) scale(${scale}) translate(${-pivotX} ${-pivotY})` : undefined;
+          const mk = markerSuffix(e.key);
           return (
-            <path
-              key={e.key}
-              d={dVis}
-              fill="none"
-              stroke={v.stroke}
-              strokeWidth={PROP_TRIANGLE_EDGE_STROKE + (ho ? 0.85 : 0)}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              markerEnd={`url(#${uid}_tri_${markerSuffix(e.key)})`}
-              opacity={ho ? 1 : 0.92}
-            />
+            <g key={e.key} transform={edgeTransform} className="transition-transform duration-200 ease-out">
+              {ho ? (
+                <>
+                  <path
+                    d={dVis}
+                    fill="none"
+                    stroke="#ffffff"
+                    strokeWidth={outerBorderSw}
+                    strokeLinecap="butt"
+                    strokeLinejoin="round"
+                    opacity={0.98}
+                  />
+                  <path
+                    d={dVis}
+                    fill="none"
+                    stroke={v.stroke}
+                    strokeWidth={activeSw + 2.5}
+                    strokeLinecap="butt"
+                    strokeLinejoin="round"
+                    opacity={0.35}
+                  />
+                </>
+              ) : null}
+              <path
+                d={dVis}
+                fill="none"
+                stroke={v.stroke}
+                strokeWidth={activeSw}
+                strokeLinecap="butt"
+                strokeLinejoin="round"
+                markerEnd={`url(#${uid}_tri_${mk})`}
+                opacity={ho ? 1 : 0.92}
+                filter={ho ? `url(#${uid}_tri_glow_${mk})` : undefined}
+              />
+            </g>
           );
         })}
+        </g>
         {ringLayout.scoreLabels.map((lab) => {
-          const v = strengthStyle(lab.impact);
           const ho = hoverEdgeKey === lab.key;
-          const label = `传播↑${lab.impact}%`;
+          const v = edgeArrowStyle(ho);
+          const label = `${lab.impact}%`;
           const fw = label.length * 7.8 + 22;
           const fh = 28;
+          const scale = ho ? 1.14 : 1;
+          const labelTransform = ho
+            ? `translate(${lab.x} ${lab.y}) scale(${scale}) translate(${-lab.x} ${-lab.y})`
+            : undefined;
           return (
-            <g key={`score-${lab.key}`} opacity={ho ? 1 : 0.96}>
+            <g
+              key={`score-${lab.key}`}
+              transform={labelTransform}
+              opacity={ho ? 1 : 0.96}
+              className="transition-transform duration-200 ease-out"
+            >
+              {ho ? (
+                <rect
+                  x={lab.x - fw / 2 - 3}
+                  y={lab.y - fh / 2 - 3}
+                  width={fw + 6}
+                  height={fh + 6}
+                  rx={10}
+                  fill="none"
+                  stroke={v.stroke}
+                  strokeWidth={2}
+                  opacity={0.55}
+                />
+              ) : null}
               <rect
                 x={lab.x - fw / 2}
                 y={lab.y - fh / 2}
@@ -558,9 +735,9 @@ function PropagationDiseaseTriangleFlow({
                 height={fh}
                 rx={8}
                 fill="white"
-                fillOpacity={0.96}
+                fillOpacity={0.98}
                 stroke={v.stroke}
-                strokeWidth={ho ? 1.5 : 1}
+                strokeWidth={ho ? 2.5 : 1}
               />
               <text
                 x={lab.x}
@@ -568,7 +745,7 @@ function PropagationDiseaseTriangleFlow({
                 textAnchor="middle"
                 dominantBaseline="middle"
                 fill={v.stroke}
-                fontSize={16}
+                fontSize={ho ? 17 : 16}
                 fontWeight={700}
               >
                 {label}
@@ -586,7 +763,7 @@ function PropagationDiseaseTriangleFlow({
             edgeLabel={activeArcNote.edgeLabel}
             text={activeArcNote.text}
             dualLayer={activeArcNote.dualLayer}
-            accentStroke={strengthStyle(activeArcNote.impact).stroke}
+            accentStroke={edgeArrowStyle(true).stroke}
             translateClass={activeArcNote.translateClass}
             style={{
               left: `${(activeArcNote.x / vbW) * 100}%`,
@@ -617,7 +794,7 @@ function PropagationCalloutHexPanel({
   onHover: (key: string | null) => void;
   onSelectTarget: (id: PropagationDiseaseId) => void;
 }) {
-  const v = strengthStyle(edge.impact);
+  const v = edgeArrowStyle(hovered);
   const cap = edgeCaption(edge.label);
   const hexBg =
     hexTone === 'amber'
@@ -716,7 +893,7 @@ function PropagationIntensityComparison({
     return m;
   }, [edges]);
 
-  const eDmLiver = edgeByKey['diabetes-liver'];
+  const eLiverDm = edgeByKey['liver-diabetes'];
   const eLiverStroke = edgeByKey['liver-stroke'];
   const eDmStroke = edgeByKey['diabetes-stroke'];
 
@@ -733,10 +910,10 @@ function PropagationIntensityComparison({
         />
 
         <div className="relative z-[1] mx-auto flex max-w-5xl flex-col items-center overflow-visible px-1 pb-1 pt-4 sm:px-2">
-          {eDmLiver && eLiverStroke && eDmStroke ? (
+          {eLiverDm && eLiverStroke && eDmStroke ? (
             <PropagationDiseaseTriangleFlow
               uid={uid}
-              eDmLiver={eDmLiver}
+              eLiverDm={eLiverDm}
               eLiverStroke={eLiverStroke}
               eDmStroke={eDmStroke}
               hoverEdgeKey={hoverEdgeKey}
@@ -745,7 +922,7 @@ function PropagationIntensityComparison({
             />
           ) : null}
           <p className="mt-4 max-w-md text-center text-xs leading-relaxed text-gray-500">
-            三边为同一外接圆上的圆弧，合围成环：糖尿病→脂肪肝→脑卒中，以及糖尿病→脑卒中直接路径；线色表示关联强度（见下方图例）。
+            三边为同一外接圆上的圆弧，合围成环：脂肪肝→糖尿病→脑卒中，以及糖尿病→脑卒中直接路径；箭头默认绿色，悬停时高亮为黄色。
           </p>
         </div>
       </div>
@@ -772,13 +949,13 @@ const EDGES: {
   summaryZh: string;
 }[] = [
   {
-    from: 'diabetes',
-    to: 'liver',
+    from: 'liver',
+    to: 'diabetes',
     pathWeight: 0.92,
     clinicalNote:
-      '长期高血糖与胰岛素抵抗可加重肝脏脂肪沉积，糖尿病与脂肪肝常并存并相互促进，需同步管理糖代谢与肝脏脂肪。',
+      '胰岛素抵抗与肝脂沉积可相互促进：脂肪肝常伴随糖代谢异常，加重糖尿病发生与进展风险。',
     summaryZh:
-      '高糖与胰岛素抵抗可推动肝脂沉积，两病并存时常相互加重；扼要把握「降糖护肝一体管理」，有助于打断彼此强化。',
+      '肝脂沉积与胰岛素抵抗相互强化，脂肪肝可推动糖代谢恶化；宜同步关注护肝与控糖，打断彼此加重。',
   },
   {
     from: 'liver',
@@ -826,8 +1003,8 @@ function ArrowSegment({
   /** 完整页三角图已有弧线旁说明时，横向条不再弹出第二块浮层 */
   showHoverCallout?: boolean;
 }) {
-  const v = strengthStyle(edge.impact);
   const hovered = hoverEdgeKey === edge.key;
+  const v = edgeArrowStyle(hovered);
   const dark = vizSurface === 'analytics' && !compact;
 
   return (
@@ -844,7 +1021,7 @@ function ArrowSegment({
             ? 'bg-teal-500/15 ring-1 ring-teal-400/35'
             : 'hover:bg-white/5'
           : hovered
-            ? 'bg-gray-50 ring-1 ring-emerald-200/80'
+            ? 'bg-gray-50 ring-1 ring-yellow-200/80'
             : 'hover:bg-gray-50/80',
       )}
     >
@@ -860,7 +1037,7 @@ function ArrowSegment({
       </p>
       <div className="order-2 flex w-full max-w-[8rem] items-center justify-center sm:max-w-none">
         {dark ? (
-          <FlowChannel edgeKey={edge.key} impact={edge.impact} hovered={hovered} />
+          <FlowChannel edgeKey={edge.key} hovered={hovered} />
         ) : (
           <>
             <div
@@ -884,7 +1061,7 @@ function ArrowSegment({
         className={cn(
           'order-3 text-center font-bold leading-tight',
           compact ? 'text-xs sm:text-sm' : 'text-sm',
-          dark ? strengthLabelOnDark(edge.impact) : v.labelClass,
+          dark ? edgeLabelOnDark(hovered) : v.labelClass,
         )}
       >
         {edge.label}
@@ -940,7 +1117,7 @@ export function DiseaseRiskPropagationModule({
       const from = map[e.from];
       const to = map[e.to];
       const backendImpact =
-        e.from === 'diabetes' && e.to === 'liver'
+        e.from === 'liver' && e.to === 'diabetes'
           ? propagationScores?.[0]
           : e.from === 'liver' && e.to === 'stroke'
             ? propagationScores?.[1]
@@ -952,14 +1129,14 @@ export function DiseaseRiskPropagationModule({
           ? Math.max(0, Math.min(98, Math.round(Number(backendImpact))))
           : edgePropagationIndex(from.score, to.score, e.pathWeight);
       const label =
-        e.from === 'diabetes' && e.to === 'liver'
-          ? '糖尿病→脂肪肝'
+        e.from === 'liver' && e.to === 'diabetes'
+          ? '脂肪肝→糖尿病'
           : e.from === 'liver' && e.to === 'stroke'
             ? '脂肪肝→脑卒中'
             : e.from === 'diabetes' && e.to === 'stroke'
               ? '糖尿病→脑卒中'
               : `${from.shortName}→${to.shortName}`;
-      const detailKey = `${e.from}-${e.to}` as 'diabetes-liver' | 'liver-stroke' | 'diabetes-stroke';
+      const detailKey = `${e.from}-${e.to}` as 'liver-diabetes' | 'liver-stroke' | 'diabetes-stroke';
       return {
         key: detailKey,
         from,
@@ -979,11 +1156,11 @@ export function DiseaseRiskPropagationModule({
     return m;
   }, [edgeRows]);
 
-  const eDmLiver = edgeMap['diabetes-liver'];
+  const eLiverDm = edgeMap['liver-diabetes'];
   const eDmStroke = edgeMap['diabetes-stroke'];
   const eLiverStroke = edgeMap['liver-stroke'];
 
-  if (!liver || !dm || !stroke || !eDmLiver || !eDmStroke || !eLiverStroke) return null;
+  if (!liver || !dm || !stroke || !eLiverDm || !eDmStroke || !eLiverStroke) return null;
 
   const isCompact = Boolean(compact);
 
@@ -1100,42 +1277,44 @@ export function DiseaseRiskPropagationModule({
                 aria-hidden
               >
                 <defs>
-                  {[eDmLiver, eLiverStroke, eDmStroke].map((ed) => {
-                    const st = strengthStyle(ed.impact);
-                    return (
-                      <marker
-                        key={ed.key}
-                        id={`${arrowMarkerId}-${ed.key}`}
-                        markerUnits="userSpaceOnUse"
-                        markerWidth="22"
-                        markerHeight="22"
-                        refX="19"
-                        refY="11"
-                        orient="auto"
-                        overflow="visible"
-                      >
-                        <path
-                          d="M0,2 L0,20 L19,11 Z"
-                          fill={st.stroke}
-                          stroke={st.stroke}
-                          strokeWidth={0.5}
-                          strokeLinejoin="miter"
-                        />
-                      </marker>
-                    );
-                  })}
+                  {[eLiverDm, eLiverStroke, eDmStroke].flatMap((ed) =>
+                    ([false, true] as const).map((ho) => {
+                      const st = edgeArrowStyle(ho);
+                      return (
+                        <marker
+                          key={`${ed.key}-${ho ? 'h' : 'n'}`}
+                          id={`${arrowMarkerId}-${ed.key}-${ho ? 'h' : 'n'}`}
+                          markerUnits="userSpaceOnUse"
+                          markerWidth="22"
+                          markerHeight="22"
+                          refX="19"
+                          refY="11"
+                          orient="auto"
+                          overflow="visible"
+                        >
+                          <path
+                            d="M0,2 L0,20 L19,11 Z"
+                            fill={st.stroke}
+                            stroke={st.stroke}
+                            strokeWidth={0.5}
+                            strokeLinejoin="miter"
+                          />
+                        </marker>
+                      );
+                    }),
+                  )}
                 </defs>
                 {(
                   [
                     {
-                      e: eDmLiver,
+                      e: eLiverDm,
                       ...shortenBetween(
-                        PROP_NODE_COMPACT.diabetes.x,
-                        PROP_NODE_COMPACT.diabetes.y,
                         PROP_NODE_COMPACT.liver.x,
                         PROP_NODE_COMPACT.liver.y,
-                        56,
-                        62,
+                        PROP_NODE_COMPACT.diabetes.x,
+                        PROP_NODE_COMPACT.diabetes.y,
+                        60,
+                        68,
                       ),
                       lx: 0,
                       ly: -16,
@@ -1147,8 +1326,8 @@ export function DiseaseRiskPropagationModule({
                         PROP_NODE_COMPACT.liver.y,
                         PROP_NODE_COMPACT.stroke.x,
                         PROP_NODE_COMPACT.stroke.y,
-                        56,
-                        64,
+                        60,
+                        70,
                       ),
                       lx: 14,
                       ly: -11,
@@ -1160,29 +1339,60 @@ export function DiseaseRiskPropagationModule({
                         PROP_NODE_COMPACT.diabetes.y,
                         PROP_NODE_COMPACT.stroke.x,
                         PROP_NODE_COMPACT.stroke.y,
-                        56,
-                        64,
+                        60,
+                        70,
                       ),
                       lx: -16,
                       ly: -12,
                     },
                   ] as const
                 ).map(({ e, x1, y1, x2, y2, lx, ly }) => {
-                  const v = strengthStyle(e.impact);
+                  const ho = hoverEdgeKey === e.key;
+                  const v = edgeArrowStyle(ho);
                   const mx = (x1 + x2) / 2 + lx;
                   const my = (y1 + y2) / 2 + ly;
-                  const ho = hoverEdgeKey === e.key;
+                  const pivotX = (x1 + x2) / 2;
+                  const pivotY = (y1 + y2) / 2;
+                  const activeSw = PROPAGATION_EDGE_STROKE + (ho ? 2.5 : 0);
+                  const edgeTransform = ho
+                    ? `translate(${pivotX} ${pivotY}) scale(1.04) translate(${-pivotX} ${-pivotY})`
+                    : undefined;
                   return (
-                    <g key={e.key}>
+                    <g key={e.key} transform={edgeTransform} className="transition-transform duration-200 ease-out">
+                      {ho ? (
+                        <>
+                          <line
+                            x1={x1}
+                            y1={y1}
+                            x2={x2}
+                            y2={y2}
+                            stroke="#ffffff"
+                            strokeWidth={activeSw + 6}
+                            strokeLinecap="round"
+                            className="pointer-events-none"
+                          />
+                          <line
+                            x1={x1}
+                            y1={y1}
+                            x2={x2}
+                            y2={y2}
+                            stroke={v.stroke}
+                            strokeWidth={activeSw + 2}
+                            strokeLinecap="round"
+                            opacity={0.35}
+                            className="pointer-events-none"
+                          />
+                        </>
+                      ) : null}
                       <line
                         x1={x1}
                         y1={y1}
                         x2={x2}
                         y2={y2}
                         stroke={v.stroke}
-                        strokeWidth={PROPAGATION_EDGE_STROKE}
-                        strokeLinecap="butt"
-                        markerEnd={`url(#${arrowMarkerId}-${e.key})`}
+                        strokeWidth={activeSw}
+                        strokeLinecap="round"
+                        markerEnd={`url(#${arrowMarkerId}-${e.key}-${ho ? 'h' : 'n'})`}
                         opacity={ho ? 1 : 0.95}
                         className="pointer-events-none"
                       />
@@ -1196,7 +1406,7 @@ export function DiseaseRiskPropagationModule({
                         fontWeight={600}
                         className="pointer-events-none select-none"
                       >
-                        {`风险↑${e.impact}%`}
+                        {`${e.impact}%`}
                       </text>
                       <line
                         x1={x1}
@@ -1239,26 +1449,15 @@ export function DiseaseRiskPropagationModule({
             {hoverEdgeKey ? (
               <div className="mt-3 rounded-lg border border-gray-200 bg-white p-3 text-base leading-relaxed text-gray-700 shadow-sm">
                 <p>{edgeMap[hoverEdgeKey]?.clinicalNote ?? ''}</p>
-                {edgeMap[hoverEdgeKey]?.dualLayer ? (
-                  <>
-                    <p className="mt-2 text-xs text-gray-500">
-                      关联层 {edgeMap[hoverEdgeKey]!.dualLayer!.associationScore}% · 因果层{' '}
-                      {edgeMap[hoverEdgeKey]!.dualLayer!.causalScore}%
-                    </p>
-                    <p className="mt-1 text-xs text-teal-800">
-                      {edgeMap[hoverEdgeKey]!.dualLayer!.diagnosis.label}
-                    </p>
-                  </>
-                ) : null}
               </div>
             ) : null}
           </div>
         ) : (
           <div className="relative rounded-xl border border-gray-200 bg-gray-50/70 p-4 sm:p-5">
             <div className="relative z-[1] flex flex-col sm:flex-row sm:items-center sm:gap-3">
-              <NodeButton d={dm} />
+              <NodeButton d={liver} />
               <ArrowSegment
-                edge={eDmLiver}
+                edge={eLiverDm}
                 onSelectTarget={onSelectDisease}
                 onHoverKey={setHoverEdgeKey}
                 hoverEdgeKey={hoverEdgeKey}
@@ -1266,7 +1465,7 @@ export function DiseaseRiskPropagationModule({
                 vizSurface="paper"
                 showHoverCallout={false}
               />
-              <NodeButton d={liver} />
+              <NodeButton d={dm} />
               <ArrowSegment
                 edge={eLiverStroke}
                 onSelectTarget={onSelectDisease}
@@ -1280,26 +1479,12 @@ export function DiseaseRiskPropagationModule({
             </div>
 
             <PropagationIntensityComparison
-              edges={[eDmLiver, eLiverStroke, eDmStroke]}
+              edges={[eLiverDm, eLiverStroke, eDmStroke]}
               hoverEdgeKey={hoverEdgeKey}
               onHoverEdge={setHoverEdgeKey}
               onSelectTarget={onSelectDisease}
             />
 
-            <div className="relative z-[1] mt-3 flex flex-wrap items-center justify-end gap-3 text-xs text-gray-600">
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-emerald-500 ring-1 ring-emerald-200" />
-                {'弱关联 <30'}
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-amber-500 ring-1 ring-amber-200" />
-                中 30–60
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-rose-500 ring-1 ring-rose-200" />
-                {'强 >60'}
-              </span>
-            </div>
           </div>
         )}
       </div>

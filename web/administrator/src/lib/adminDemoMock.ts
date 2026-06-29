@@ -2,18 +2,13 @@
  * 管理端演示用模拟数据。
  * 开启方式（任选其一）：
  * - 地址栏：?demo=1 或 ?demo1=1
- * - 环境变量：VITE_ADMIN_DEMO=1（开发环境见 .env.development）
+ * - 环境变量：VITE_ADMIN_DEMO=1 | VITE_DOCTOR_DEMO=1（开发环境见 .env.development）
  */
 
+import { PLATFORM_DEMO_TOTALS, isPlatformDemoMode } from '@shared/demo/platformDemo';
+
 export function isAdminDemoMode(): boolean {
-  if (typeof window === 'undefined') return false;
-  try {
-    const q = new URLSearchParams(window.location.search);
-    if (q.get('demo') === '1' || q.get('demo1') === '1') return true;
-  } catch {
-    /* ignore */
-  }
-  return import.meta.env.VITE_ADMIN_DEMO === '1';
+  return isPlatformDemoMode();
 }
 
 /** 最近 n 天日期标签 MM-DD，从左到右由旧到新 */
@@ -32,12 +27,7 @@ function lastNDatesMMDD(n: number): string[] {
 }
 
 export function getDemoDashboardTotals() {
-  return {
-    users: 3268,
-    doctors: 192,
-    hospitals: 48,
-    articles: 256,
-  } as const;
+  return { ...PLATFORM_DEMO_TOTALS };
 }
 
 /** 本周用户/医生注册柱状图 */
